@@ -1,0 +1,48 @@
+outfile$ = "G:\_out.txt"
+select Sound room
+To Formant (burg)... 0 5 5500 0.05 50
+
+Timestep, # formants, max freq, window size, something
+
+To Formant (burg)... 0.02 5 5500 0.0125 50
+
+To Formant (burg)... 0.02 5 5500 0.02 50
+
+To Formant (burg)... 0.02 5 5500 0.015 50
+
+
+
+
+
+
+
+
+#select Sound room
+tmin = 0
+tmax = 23.6
+#To Pitch: 0.001, 75, 300
+#Rename: "pitch"
+#select Sound room
+#To Intensity: 75, 0.001
+#Rename: "intensity"
+#writeInfoLine: "Here are the results:"
+for i to (tmax-tmin)/0.01
+    time = tmin + i * 0.01
+    selectObject: "Pitch interpo"
+    pitch = Get value at time: time, "Hertz", "Linear"
+    #selectObject: "Intensity intensity"
+    #intensity = Get value at time: time, "Cubic"
+    #appendInfoLine: fixed$ (time, 2), " ", fixed$ (pitch, 3), " ", fixed$ (intensity, 3)
+    appendInfoLine: fixed$ (pitch, 3)
+endfor
+
+
+
+tmin = 0
+tmax = 23.6
+for i to (tmax-tmin)/0.04
+    time = tmin + i * 0.04
+    selectObject: "Pitch interpo"
+    pitch = Get value at time: time, "Hertz", "Linear"
+    appendInfoLine: fixed$ (pitch, 3)
+endfor
