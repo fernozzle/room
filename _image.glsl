@@ -1,6 +1,5 @@
 #define TWO_PI 6.2831853
-#define VERTICAL_FOV 60.
-
+#define VERTICAL_FOV 40.
 
 vec2 normalize_pixel_coords(vec2 pixel_coords) {
     return (pixel_coords * 2. - iResolution.xy) / iResolution.y;
@@ -23,7 +22,7 @@ vec3 map_normal(vec3 p, float pval) {
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    vec3 camera_pos = vec3(0., -1., -8.) + vec3(normalize_pixel_coords(iMouse.xy), 0.) * 10.;
+    vec3 camera_pos = vec3(0., -1., -8.) + vec3(normalize_pixel_coords(iMouse.xy), 0.) * 20.;
     
     vec3 camera_target = vec3(0., 0., 0.);
     vec3 camera_dir = normalize(camera_target - camera_pos);
@@ -39,18 +38,18 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 bg = ray_dir * .5 + .5;
     
     float ray_len = 0.;
-    float dist = 123.;
+    float map_dist = 123.;
     for (int i = 0; i < 50; i++) {
-        if (ray_len > 100. || dist < 0.01) continue; 
-        ray_len += dist = map(camera_pos + ray_len * ray_dir);
+        if (ray_len > 100. || map_dist < 0.01) continue; 
+        ray_len += map_dist = map(camera_pos + ray_len * ray_dir);
     }
+    map_dist = map(camera_pos + ray_len * ray_dir);
     
     vec3 col = bg;
-    if (dist < 0.02) {
-        vec3 normal = map_normal(camera_pos + ray_len * ray_dir, dist);
+    if (map_dist < 0.1) {
+        vec3 normal = map_normal(camera_pos + ray_len * ray_dir, map_dist);
         col = vec3(-normal.z);
     }
-    //col = vec3(dist);
     
 	fragColor = vec4(col, 1.);
 }
