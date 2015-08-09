@@ -8,6 +8,7 @@ vec2 normalize_pixel_coords(vec2 pixel_coords) {
 }
 
 float box_map(vec3 p, vec3 center, vec3 size, float radius) {
+    size *= .5;
     vec3 lower_bound = center - size;
     vec3 upper_bound = center + size;
     vec3 temp = min(max(p, lower_bound), upper_bound);
@@ -18,41 +19,53 @@ float sphere_map(vec3 p, vec3 center, float radius) {
     return distance(p, center) - radius;
 }
 
+float walls_map(vec3 p, vec2 size) {
+    p.xy = abs(p.xy) - size * .5;
+    return -max(p.x, p.y);
+}
+
 // Material data: 3 channels & index
 //   Index [0, 1) = smoothness; RGB = albedo
 float map(in vec3 p, out vec4 material) {
-    float dist = box_map(p, vec3(0.), vec3(1.), 0.5);
+    float dist = box_map(p, vec3(0.), vec3(.25), 0.125);
     material = vec4(0.4, 0.7, 0.9, 0.5);
     
-    float new_dist = sphere_map(p, vec3(sin(iGlobalTime * 5.) * .8 + 2., 0., 0.), 1.);
+    float new_dist = sphere_map(p, vec3(sin(iGlobalTime * 2.5) * .2 + .5, 0., 0.), .25);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(0.8, 0.1, 0.1, 0.5);
     }
     
-    new_dist = sphere_map(p, vec3(0., 0., sin(iGlobalTime * 4.) * 1. + 3.), .5);
+    new_dist = sphere_map(p, vec3(0., 0., sin(iGlobalTime * 1.) * .25 + .75), .125);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(0.9, 0.9, 0.3, 1.);
     }
     
-    new_dist = box_map(p, vec3(0.5, -1., 0.1), vec3(0.4, 0., 1.), 0.2);
+    new_dist = box_map(p, vec3(0.125, -.25, 0.025), vec3(.2, 0., .5), .05);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 0.3);
     }
     
-    new_dist = box_map(p, vec3(-2.5, 0., 0.), vec3(.2, .2, .2), 0.4);
+    new_dist = box_map(p, vec3(-.625, 0., 0.), vec3(.1, .1, .1), 0.1);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., .5, .2, 0.5);
     }
     
-    // Room
-    //new_dist = box_map(p, vec3(0.), vec3(5.8,), 0.4);
+    // Walls
+    new_dist = walls_map(p - vec3(-1.1, -.95, 1.2), vec2(5.8, 5.5));
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(1., .5, .2, 0.5);
+        material = vec4(1., 1., 1., 0.5);
+    }
+    
+    // Floor
+    new_dist = p.z;
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(1., 1., 1., 0.5);
     }
     
     return dist;
@@ -142,7 +155,7 @@ float cocSize(float dist) {
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
-    vec3 camera_pos = vec3(0., -8., 0.) + vec3(mouse_normalized.x, 0., mouse_normalized.y) * 20.;
+    vec3 camera_pos = vec3(0., -2., 0.) + vec3(mouse_normalized.x, 0., mouse_normalized.y) * 2.;
     
     vec3 camera_target = vec3(0., 0., 0.);
     vec3 camera_dir = normalize(camera_target - camera_pos);
@@ -177,7 +190,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 float alpha = toward_camera * coc_kernel(coc, map_dist);
                 vec3 surface_color = vec3(0.);
                 
-                vec3 light_pos = vec3(-3., sin(iGlobalTime * 2.) * 3., 4.);
+                vec3 light_pos = vec3(-1.5, sin(iGlobalTime * 1.) * 1.5, 2.);
                 vec3 light_dir = normalize(light_pos - point);
                 vec3 light_intensity;
                 light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(point, light_dir, .2, coc, .1);
