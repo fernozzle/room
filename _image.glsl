@@ -29,13 +29,19 @@ float map(in vec3 p, out vec4 material) {
         material = vec4(0.8, 0.1, 0.1, 0.);
     }
     
-    new_dist = sphere_map(p, vec3(0., sin(iGlobalTime * 4.) * .5 + 2.5, 0.), .5);
+    new_dist = sphere_map(p, vec3(0., sin(iGlobalTime * 4.) * 1. + 3., 0.), .5);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(0.9, 0.9, 0.3, 0.);
     }
     
     new_dist = box_map(p, vec3(0.5, 0.1, -1.), vec3(0.4, 0., 1.), 0.2);
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(1., 1., 1., 0.);
+    }
+    
+    new_dist = box_map(p, vec3(-2.5, 0., 0.), vec3(.2, .2, .2), 0.4);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 0.);
@@ -72,14 +78,21 @@ float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) 
     return clamp(brightness, 0., 1.);
 }
 
-float ao(vec3 p, vec3 normal) {
+float ao(vec3 p, vec3 normal, float coc) {
+    float ao_size = 2.;
+    float brightness = 1.;
+    float len = coc + .05;
+    vec4 mat;
     for (int i = 0; i < 8; i++) {
-        
+        float map_dist = map(p + normal * len, mat);
+        brightness *= clamp(map_dist / len + len * ao_size, 0., 1.);
+        len += map_dist + .5 * coc;
     }
-    return 1.;
+    return pow(brightness, .2);
 }
 
 float cocSize(float dist) {
+    //return 1. / iResolution.y * dist;
     return (sin(iGlobalTime * 3.) * 4. + 5.) / iResolution.y * dist;
 }
 
@@ -113,17 +126,20 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         
         
         if(abs(map_dist) < coc) {
-            vec3 normal = map_normal(point, coc);
+            vec3 normal = map_normal(point, .01);
             float toward_camera = -dot(normal, ray_dir);
             if (toward_camera > 0.) {
                 float alpha = toward_camera * coc_kernel(coc, map_dist);
                 vec3 surface_color = vec3(0.);
+                
                 vec3 light_direction = normalize(vec3(-0.4, 1., -0.3));
                 float light_intensity;
-                //light_intensity = max(dot(normal, light_direction), 0.) * soft_shadow(point, light_direction, .2, coc, .01);
-                light_intensity = ao(point, normal);
+                light_intensity = max(dot(normal, light_direction), 0.) * soft_shadow(point, light_direction, .2, coc, .01);
+                //light_intensity = ao(point, normal, coc);
                 
-                surface_color += mat.rgb * (.05 + .95 * light_intensity);
+                surface_color += mat.rgb * (.01 + .99 * light_intensity) * vec3(1., 0.95, 0.7);
+                
+                surface_color += mat.rgb * ao(point, normal, coc) * vec3(0.2, 0.8, 1.) * .2;
                 
                 // "Alpha-under"ing surface_color/alpha beneath col
                 float added_coverage = alpha * (1. - col.a);
