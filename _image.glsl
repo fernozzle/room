@@ -1,8 +1,10 @@
 #define PI 3.141592
 #define TWO_PI 6.2831853
-#define VERTICAL_FOV 40.
+#define VERTICAL_FOV 80.
 #define MAX_ALPHA .9
 #define NORMAL_EPSILON .01
+// Compensate for distorted distance fields
+#define STEP_SCALE 0.8
 
 float rand(vec2 co){
 	return fract(sin(iGlobalTime * dot(co * 0.123, vec2(12.9898, 78.233))) * 43758.5453);
@@ -12,23 +14,16 @@ vec2 normalize_pixel_coords(vec2 pixel_coords) {
     return (pixel_coords * 2. - iResolution.xy) / iResolution.y;
 }
 
-float box_map2(vec3 p, vec3 center, vec3 size, float radius) {
-    size *= .5;
-    vec3 lower_bound = center - size;
-    vec3 upper_bound = center + size;
-    vec3 temp = min(max(p, lower_bound), upper_bound);
-    return distance(p, temp) - radius;
-}
 
 float box_map(vec3 p, vec3 size, float radius) {
     size *= .5;
     vec3 temp = clamp(p, -size, size);
     return distance(p, temp) - radius;
 }
-
 float sphere_map(vec3 p, vec3 center, float radius) {
     return distance(p, center) - radius;
 }
+
 float walls_map(vec3 p, vec2 size) {
     p.xy = abs(p.xy) - size * .5;
     return -max(p.x, p.y);
@@ -51,6 +46,16 @@ float shelf_map(vec3 p) {
     float back_distance    = distance(p.xy, vec2(min(p.x, .04), 0.));
     
     return min(shelf_distance, min(support_distance, back_distance)) - .02;
+}
+float couch_map(vec3 p) {
+    
+    vec2 center = vec2(clamp(p.x, -.5, 1.), 1.2);
+    center.y += .3 / (pow(p.x - .25, 2.) * 2. + 1.);
+    
+    vec2 p_rel = p.xy - center;
+    float l = length(p_rel);
+    vec2 center2 = (p_rel / l) * min(l, .42) + center;
+    return distance(p, vec3(center2, min(p.z, .33))) - .02;
 }
 
 // Material data: 3 channels & index
@@ -77,7 +82,7 @@ float map(in vec3 p, out vec4 material) {
     new_dist = shelf_map(p - vec3(-3.3, 2.3, 0.));
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(.76, .52, .33, 0.9);
+        material = vec4(.76, .52, .33, 0.8);
     }
     
     // Door
@@ -86,6 +91,13 @@ float map(in vec3 p, out vec4 material) {
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.76, .52, .33, 0.5);
+    }
+    
+    // Couch
+    new_dist = couch_map(p);
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(.76, .52, .33, 0.9);
     }
     
     return dist;
@@ -190,13 +202,13 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
-    vec3 camera_pos = vec3(0., -2., 2.) + vec3(mouse_normalized.x, 0., mouse_normalized.y) * 2.;
+    vec3 camera_pos = vec3(0., -2., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 3.);
     
     vec3 camera_target = vec3(0., 0., 0.);
     vec3 camera_dir = normalize(camera_target - camera_pos);
     
-    vec3 camera_right = cross(camera_dir, vec3(0., 0., 1.));
-    vec3 camera_up    = cross(camera_right, camera_dir);
+    vec3 camera_right = normalize(cross(camera_dir, vec3(0., 0., 1.)));
+    vec3 camera_up    = normalize(cross(camera_right, camera_dir));
     
     vec2 uv = normalize_pixel_coords(fragCoord);
     float ray_spread = tan((VERTICAL_FOV / 360. * TWO_PI) / 2.);
@@ -240,7 +252,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         }
         
         iters++;
-        ray_len += max(map_dist - .5 * coc, .3 * coc)/* * mix(1., 0.9, rand(fragCoord.xy))*/;
+        ray_len += max(map_dist - .5 * coc, .3 * coc) * STEP_SCALE/* * mix(1., 0.9, rand(fragCoord.xy))*/;
     }
     
     if (col == vec4(0., 1., 0., 0.)) {
