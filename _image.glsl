@@ -71,14 +71,14 @@ float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) 
     }
     return clamp(brightness, 0., 1.);
 }
-/*
+
 float ao(vec3 p, vec3 normal) {
-    
     for (int i = 0; i < 8; i++) {
         
     }
+    return 1.;
 }
-*/
+
 float cocSize(float dist) {
     return (sin(iGlobalTime * 3.) * 4. + 5.) / iResolution.y * dist;
 }
@@ -119,7 +119,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 float alpha = toward_camera * coc_kernel(coc, map_dist);
                 vec3 surface_color = vec3(0.);
                 vec3 light_direction = normalize(vec3(-0.4, 1., -0.3));
-                surface_color += mat.rgb * (.05 + .95 * ( max(dot(normal, light_direction), 0.) * soft_shadow(point, light_direction, .2, coc, .01)));
+                float light_intensity;
+                //light_intensity = max(dot(normal, light_direction), 0.) * soft_shadow(point, light_direction, .2, coc, .01);
+                light_intensity = ao(point, normal);
+                
+                surface_color += mat.rgb * (.05 + .95 * light_intensity);
                 
                 // "Alpha-under"ing surface_color/alpha beneath col
                 float added_coverage = alpha * (1. - col.a);
