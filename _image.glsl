@@ -33,7 +33,7 @@ float map(in vec3 p, out vec4 material) {
     new_dist = sphere_map(p, vec3(0., sin(iGlobalTime * 4.) * 1. + 3., 0.), .5);
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(0.9, 0.9, 0.3, 0.5);
+        material = vec4(0.9, 0.9, 0.3, 1.);
     }
     
     new_dist = box_map(p, vec3(0.5, 0.1, -1.), vec3(0.4, 0., 1.), 0.2);
@@ -80,7 +80,7 @@ float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) 
 }
 
 float ao(vec3 p, vec3 normal, float coc) {
-    float ao_size = 1.;
+    float ao_size = .5;
     float brightness = 1.;
     float len = coc + .05;
     vec4 mat;
@@ -94,7 +94,7 @@ float ao(vec3 p, vec3 normal, float coc) {
 
 vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, vec3 ray_dir) {
     
-    float F0 = .1;
+    float F0 = .5;
     float diffuse_specular_mix = .3;
     
     float nl = dot(normal, light_dir);
@@ -121,7 +121,7 @@ vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, v
 
         float F = F0 + (1. - F0) * exp2((-5.55473 * vh - 6.98316) * vh);
         
-        float specular = (D * F * G) / (4. * nl * nv);
+        float specular = (D * F * G) / (4. /* * nl */ * nv);
     	
         return mix(vec3(specular), diffuse, diffuse_specular_mix);
     }
@@ -169,13 +169,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 float alpha = toward_camera * coc_kernel(coc, map_dist);
                 vec3 surface_color = vec3(0.);
                 
-                vec3 light_dir = normalize(vec3(-0.4, 1., -0.3));
+                vec3 light_pos = vec3(-3., 4., sin(iGlobalTime * 2.) * 3.);
+                vec3 light_dir = normalize(light_pos - point);
                 vec3 light_intensity;
-                light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir)/* * soft_shadow(point, light_dir, .2, coc, .1)*/;
+                light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(point, light_dir, .2, coc, .1);
                 
                 surface_color += light_intensity * vec3(1., 0.95, 0.7);
                 
-                //surface_color += mat.rgb * ao(point, normal, coc) * vec3(0.2, 0.8, 1.) * .2;
+                surface_color += mat.rgb * ao(point, normal, coc) * vec3(0.2, 0.8, 1.) * .1;
                 
                 // "Alpha-under"ing surface_color/alpha beneath col
                 float added_coverage = alpha * (1. - col.a);
