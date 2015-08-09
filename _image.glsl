@@ -18,7 +18,9 @@ float sphere_map(vec3 p, vec3 center, float radius) {
 }
 
 float map(vec3 p) {
-    return box_map(p, vec3(0.), vec3(1.), 0.5);
+    float dist = box_map(p, vec3(0.), vec3(1.), 0.5);
+    dist = min(dist, sphere_map(p, vec3(2., 0., 0.), 1.));
+    return dist;
 }
 
 vec3 map_normal(vec3 p, float epsilon) {
@@ -72,8 +74,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
             }
         }
         
-        map_dist = max(map_dist - .5 * coc, .5 * coc);
-        ray_len += map_dist;
+        ray_len += max(map_dist - .5 * coc, .5 * coc);
     }
     
     col = vec4(sqrt(mix(bg, col.rgb, min(col.a / MAX_ALPHA, 1.))), 1.);
