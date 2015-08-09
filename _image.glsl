@@ -30,19 +30,26 @@ float map(in vec3 p, out vec4 material) {
         material = vec4(0.8, 0.1, 0.1, 0.5);
     }
     
-    new_dist = sphere_map(p, vec3(0., sin(iGlobalTime * 4.) * 1. + 3., 0.), .5);
+    new_dist = sphere_map(p, vec3(0., 0., sin(iGlobalTime * 4.) * 1. + 3.), .5);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(0.9, 0.9, 0.3, 1.);
     }
     
-    new_dist = box_map(p, vec3(0.5, 0.1, -1.), vec3(0.4, 0., 1.), 0.2);
+    new_dist = box_map(p, vec3(0.5, -1., 0.1), vec3(0.4, 0., 1.), 0.2);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 0.3);
     }
     
     new_dist = box_map(p, vec3(-2.5, 0., 0.), vec3(.2, .2, .2), 0.4);
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(1., .5, .2, 0.5);
+    }
+    
+    // Room
+    //new_dist = box_map(p, vec3(0.), vec3(5.8,), 0.4);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., .5, .2, 0.5);
@@ -134,13 +141,14 @@ float cocSize(float dist) {
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    vec3 camera_pos = vec3(0., -1., -8.) + vec3(normalize_pixel_coords(iMouse.xy), 0.) * 20.;
+    vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
+    vec3 camera_pos = vec3(0., -8., 0.) + vec3(mouse_normalized.x, 0., mouse_normalized.y) * 20.;
     
     vec3 camera_target = vec3(0., 0., 0.);
     vec3 camera_dir = normalize(camera_target - camera_pos);
     
-    vec3 camera_right = cross(vec3(0., 1., 0.), camera_dir);
-    vec3 camera_up    = cross(camera_dir, camera_right);
+    vec3 camera_right = cross(camera_dir, vec3(0., 0., 1.));
+    vec3 camera_up    = cross(camera_right, camera_dir);
     
     vec2 uv = normalize_pixel_coords(fragCoord);
     float ray_spread = tan((VERTICAL_FOV / 360. * TWO_PI) / 2.);
@@ -169,7 +177,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 float alpha = toward_camera * coc_kernel(coc, map_dist);
                 vec3 surface_color = vec3(0.);
                 
-                vec3 light_pos = vec3(-3., 4., sin(iGlobalTime * 2.) * 3.);
+                vec3 light_pos = vec3(-3., sin(iGlobalTime * 2.) * 3., 4.);
                 vec3 light_dir = normalize(light_pos - point);
                 vec3 light_intensity;
                 light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(point, light_dir, .2, coc, .1);
