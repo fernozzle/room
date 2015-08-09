@@ -21,6 +21,11 @@ vec3 map_normal(vec3 p, float pval) {
     return normalize(diff);
 }
 
+float bell(float a, float b, float t){
+	t=2.*clamp((t-a)/(b-a),0.,1.)-1.;
+	return 1.-t*t;
+}
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 camera_pos = vec3(0., -1., -8.) + vec3(normalize_pixel_coords(iMouse.xy), 0.) * 20.;
     
@@ -37,19 +42,29 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec3 bg = ray_dir * .5 + .5;
     
+    vec4 col = vec4(0.);
+    
+    float coc = 0.2;
     float ray_len = 0.;
     float map_dist = 123.;
     for (int i = 0; i < 50; i++) {
         if (ray_len > 100. || map_dist < 0.01) continue; 
-        ray_len += map_dist = map(camera_pos + ray_len * ray_dir);
+        map_dist = map(camera_pos + ray_len * ray_dir);
+        
+        if(abs(map_dist) < coc) {
+            vec3 normal = map_normal(camera_pos + ray_len * ray_dir, map_dist);
+            float toward_camera = -dot(normal, ray_dir);
+            if (toward_camera > 0.) {
+                float alpha = toward_camera * (1.0 - col.a) * bell(-coc, coc, map_dist);
+				col+=vec4(vec3(1., 0., 0.)*0.2*alpha,alpha);//blend in the new color
+            }
+        }
+        
+        ray_len += map_dist;
     }
     map_dist = map(camera_pos + ray_len * ray_dir);
     
-    vec3 col = bg;
-    if (map_dist < 0.1) {
-        vec3 normal = map_normal(camera_pos + ray_len * ray_dir, map_dist);
-        col = vec3(-normal.z);
-    }
+    col = vec4(mix(bg, col.rgb, col.a), 1.);
     
-	fragColor = vec4(col, 1.);
+	fragColor = vec4(col);
 }
