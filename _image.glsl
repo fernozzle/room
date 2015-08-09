@@ -69,7 +69,7 @@ float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) 
     float brightness = 1.;
     float len = coc + start_len;
     vec4 mat;
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 10; i++) {
         float map_dist = map(p + dir * len, mat);
         float coc2 = coc + len * softness;
         brightness *= 1. - coc_kernel(coc2, map_dist);
@@ -79,11 +79,11 @@ float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) 
 }
 
 float ao(vec3 p, vec3 normal, float coc) {
-    float ao_size = 2.;
+    float ao_size = 1.;
     float brightness = 1.;
     float len = coc + .05;
     vec4 mat;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 3; i++) {
         float map_dist = map(p + normal * len, mat);
         brightness *= clamp(map_dist / len + len * ao_size, 0., 1.);
         len += map_dist + .5 * coc;
@@ -134,8 +134,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 
                 vec3 light_direction = normalize(vec3(-0.4, 1., -0.3));
                 float light_intensity;
-                light_intensity = max(dot(normal, light_direction), 0.) * soft_shadow(point, light_direction, .2, coc, .01);
-                //light_intensity = ao(point, normal, coc);
+                light_intensity = max(dot(normal, light_direction), 0.) * soft_shadow(point, light_direction, .2, coc, .1);
                 
                 surface_color += mat.rgb * (.01 + .99 * light_intensity) * vec3(1., 0.95, 0.7);
                 
