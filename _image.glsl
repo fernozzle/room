@@ -23,10 +23,16 @@ float map(in vec3 p, out vec4 material) {
     float dist = box_map(p, vec3(0.), vec3(1.), 0.5);
     material = vec4(0.4, 0.8, 0.9, 0.);
     
-    float new_dist = sphere_map(p, vec3(2., 0., 0.), 1.);
+    float new_dist = sphere_map(p, vec3(sin(iGlobalTime * 5.) * .8 + 2., 0., 0.), 1.);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(0.8, 0.1, 0.1, 0.);
+    }
+    
+    new_dist = sphere_map(p, vec3(0., 3., 0.), .5);
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(0.9, 0.9, 0.3, 0.);
     }
     
     return dist;
@@ -43,8 +49,25 @@ vec3 map_normal(vec3 p, float epsilon) {
     return normalize(diff);
 }
 
+float coc_kernel(float width, float dist) {
+    return smoothstep(width, -width, dist);
+}
+
+float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) {
+    float brightness = 1.;
+    float len = coc + start_len;
+    vec4 mat;
+    for (int i = 0; i < 20; i++) {
+        float map_dist = map(p + dir * len, mat);
+        float coc2 = coc + len * softness;
+        brightness *= 1. - coc_kernel(coc2, map_dist);
+        len += map_dist + .5 * coc;
+    }
+    return clamp(brightness, 0., 1.);
+}
+
 float cocSize(float dist) {
-    return 10. / iResolution.y * dist;
+    return (sin(iGlobalTime * 3.) * 4. + 5.) / iResolution.y * dist;
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -71,16 +94,19 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     int iters = 0;
     for (int i = 0; i < 50; i++) {
         if (ray_len > 100. || col.a > MAX_ALPHA) continue; 
-        map_dist = map(camera_pos + ray_len * ray_dir, mat);
         float coc = cocSize(ray_len);
+        vec3 point = camera_pos + ray_len * ray_dir;
+        map_dist = map(point, mat);
+        
         
         if(abs(map_dist) < coc) {
-            vec3 normal = map_normal(camera_pos + ray_len * ray_dir, coc);
+            vec3 normal = map_normal(point, coc);
             float toward_camera = -dot(normal, ray_dir);
             if (toward_camera > 0.) {
-                float alpha = toward_camera * smoothstep(coc, 0., map_dist);
+                float alpha = toward_camera * coc_kernel(coc, map_dist);
                 vec3 surface_color = vec3(0.);
-                surface_color += mat.rgb * max(dot(normal, normalize(vec3(-0.4, 1., -0.3))), 0.);
+                vec3 light_direction = normalize(vec3(-0.4, 1., -0.3));
+                surface_color += mat.rgb * (.05 + .95 * ( max(dot(normal, light_direction), 0.) * soft_shadow(point, light_direction, .0, coc, .01)));
                 
                 // "Alpha-under"ing surface_color/alpha beneath col
                 float added_coverage = alpha * (1. - col.a);
