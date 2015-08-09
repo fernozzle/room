@@ -2,12 +2,13 @@
 #define TWO_PI 6.2831853
 #define VERTICAL_FOV 40.
 #define MAX_ALPHA .9
+#define NORMAL_EPSILON .01
 
 vec2 normalize_pixel_coords(vec2 pixel_coords) {
     return (pixel_coords * 2. - iResolution.xy) / iResolution.y;
 }
 
-float box_map(vec3 p, vec3 center, vec3 size, float radius) {
+float box_map2(vec3 p, vec3 center, vec3 size, float radius) {
     size *= .5;
     vec3 lower_bound = center - size;
     vec3 upper_bound = center + size;
@@ -15,10 +16,15 @@ float box_map(vec3 p, vec3 center, vec3 size, float radius) {
     return distance(p, temp) - radius;
 }
 
+float box_map(vec3 p, vec3 size, float radius) {
+    size *= .5;
+    vec3 temp = clamp(p, -size, size);
+    return distance(p, temp) - radius;
+}
+
 float sphere_map(vec3 p, vec3 center, float radius) {
     return distance(p, center) - radius;
 }
-
 float walls_map(vec3 p, vec2 size) {
     p.xy = abs(p.xy) - size * .5;
     return -max(p.x, p.y);
@@ -26,11 +32,27 @@ float walls_map(vec3 p, vec2 size) {
 float pillar_map(vec3 p, float radius) {
     return length(p.xy) - radius;
 }
+float shelf_map(vec3 p) {
+    if (p.y < -p.x) p.xyz = p.yxz * vec3(-1., 1., 1.);
+    
+    float shelf_spacing = .33;
+    float shelf_height = floor(p.z / shelf_spacing + .5) * shelf_spacing;
+    
+    float shelf_radius = .48 - .2 * p.z;
+    float l = length(p.xy);
+    vec3 shelf_point = vec3((p.xy / l) * min(l, shelf_radius), shelf_height);
+    float shelf_distance = distance(p, shelf_point);
+    
+    float support_distance = distance(p.xy, vec2(clamp(p.x, shelf_radius - .04, shelf_radius), 0.));
+    float back_distance    = distance(p.xy, vec2(min(p.x, .04), 0.));
+    
+    return min(shelf_distance, min(support_distance, back_distance)) - .02;
+}
 
 // Material data: 3 channels & index
 //   Index [0, 1) = smoothness; RGB = albedo
 float map(in vec3 p, out vec4 material) {
-    float dist = box_map(p, vec3(0.), vec3(.25), 0.125);
+    float dist = box_map2(p, vec3(0.), vec3(.25), 0.125);
     material = vec4(0.4, 0.7, 0.9, 0.5);
     
     float new_dist = sphere_map(p, vec3(sin(iGlobalTime * 2.5) * .2 + .5, 0., 0.), .25);
@@ -45,13 +67,13 @@ float map(in vec3 p, out vec4 material) {
         material = vec4(0.9, 0.9, 0.3, 1.);
     }
     
-    new_dist = box_map(p, vec3(0.125, -.25, 0.025), vec3(.2, 0., .5), .05);
+    new_dist = box_map2(p, vec3(0.125, -.25, 0.025), vec3(.2, 0., .5), .05);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 0.3);
     }
     
-    new_dist = box_map(p, vec3(-.625, 0., 0.), vec3(.1, .1, .1), 0.1);
+    new_dist = box_map2(p, vec3(-.625, 0., 0.), vec3(.1, .1, .1), 0.1);
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., .5, .2, 0.5);
@@ -61,7 +83,7 @@ float map(in vec3 p, out vec4 material) {
     new_dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(1., 1., 1., 0.5);
+        material = vec4(.77, .1, .16, 0.5);
     }
     // Floor
     new_dist = p.z;
@@ -75,6 +97,21 @@ float map(in vec3 p, out vec4 material) {
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 0.5);
+    }
+    
+    // Shelf
+    new_dist = shelf_map(p - vec3(-3.3, 2.3, 0.));
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(.76, .52, .33, 0.9);
+    }
+    
+    // Door
+    float door_width = .02;
+    new_dist = box_map(p - vec3(-3.3, 1.3, 1.09), vec3(0.1, 1. - door_width, 2.18 - door_width), door_width * .5);
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(.76, .52, .33, 0.5);
     }
     
     return dist;
@@ -157,9 +194,24 @@ vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, v
     return vec3(0.);
 }
 
-float cocSize(float dist) {
-    return 2. / iResolution.y * dist;
-    //return (sin(iGlobalTime * 3.) * 4. + 5.) / iResolution.y * dist;
+float coc_size(float dist) {
+    return 20. / iResolution.y * dist;
+    //return (sin(iGlobalTime * 3.) * 2. + 3.) / iResolution.y * dist;
+}
+
+vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
+    vec3 surface_color = vec3(0.);
+
+    vec3 light_pos = vec3(-1.5, sin(iGlobalTime * 1.) * 1.5, 2.);
+    vec3 light_dir = normalize(light_pos - p);
+    vec3 light_intensity;
+    light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .2, coc, .1);
+
+    surface_color += light_intensity * vec3(1., 0.95, 0.7) * 2.;
+
+    surface_color += mat.rgb * ao(p, normal, coc) * vec3(0.2, 0.8, 1.) * .1;
+    
+    return surface_color;
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -181,32 +233,28 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec4 col = vec4(0., 1., 0., 0.);
     
-    vec4 mat;
     float ray_len = 0.;
     float map_dist = 123.;
     int iters = 0;
+    
+    vec3 point;
+    vec3 normal;
+    float coc;
+    vec4 mat;
     for (int i = 0; i < 50; i++) {
         if (ray_len > 100. || col.a > MAX_ALPHA) continue; 
-        float coc = cocSize(ray_len);
-        vec3 point = camera_pos + ray_len * ray_dir;
+        coc = coc_size(ray_len);
+        point = camera_pos + ray_len * ray_dir;
         map_dist = map(point, mat);
         
         
         if(abs(map_dist) < coc) {
-            vec3 normal = map_normal(point, .01);
+            normal = map_normal(point, NORMAL_EPSILON);
             float toward_camera = -dot(normal, ray_dir);
             if (toward_camera > 0.) {
                 float alpha = toward_camera * coc_kernel(coc, map_dist);
-                vec3 surface_color = vec3(0.);
                 
-                vec3 light_pos = vec3(-1.5, sin(iGlobalTime * 1.) * 1.5, 2.);
-                vec3 light_dir = normalize(light_pos - point);
-                vec3 light_intensity;
-                light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(point, light_dir, .2, coc, .1);
-                
-                surface_color += light_intensity * vec3(1., 0.95, 0.7);
-                
-                surface_color += mat.rgb * ao(point, normal, coc) * vec3(0.2, 0.8, 1.) * .1;
+                vec3 surface_color = color_at(point, ray_dir, normal, coc, mat);
                 
                 // "Alpha-under"ing surface_color/alpha beneath col
                 float added_coverage = alpha * (1. - col.a);
@@ -219,6 +267,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         
         iters++;
         ray_len += max(map_dist - .5 * coc, .3 * coc);
+    }
+    
+    if (col == vec4(0., 1., 0., 0.)) {
+        normal = map_normal(point, NORMAL_EPSILON);
+        col = vec4(color_at(point, ray_dir, normal, coc, mat), 1.);
     }
     
     col = vec4(sqrt(col.rgb), 1.);
