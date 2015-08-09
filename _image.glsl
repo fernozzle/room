@@ -12,13 +12,18 @@ float map(vec3 p) {
     return distance(p, t) - 0.5;
 }
 
-vec3 map_normal(vec3 p, float pval) {
-    vec2 offset = vec2(0.01, 0.);
+vec3 map_normal(vec3 p, float epsilon) {
+    vec2 offset = vec2(epsilon, 0.);
     vec3 diff = vec3(
-        map(p + offset.xyy),
-        map(p + offset.yxy),
-        map(p + offset.yyx)) - pval;
+        map(p + offset.xyy) - map(p - offset.xyy),
+        map(p + offset.yxy) - map(p - offset.yxy),
+        map(p + offset.yyx) - map(p - offset.yyx)
+    );
     return normalize(diff);
+}
+
+float cocSize(float dist) {
+    return 1. / iResolution.y * dist;
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -39,15 +44,17 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec4 col = vec4(0., 1., 0., 0.);
     
-    float coc = 0.5;
+    //float coc = sin(iGlobalTime * 2.) * .4 + .5;
+    float coc = 0.1;
     float ray_len = 0.;
     float map_dist = 123.;
     for (int i = 0; i < 50; i++) {
         if (ray_len > 100. || col.a > 0.9) continue; 
         map_dist = map(camera_pos + ray_len * ray_dir);
+        float coc = cocSize(ray_len);
         
         if(abs(map_dist) < coc) {
-            vec3 normal = map_normal(camera_pos + ray_len * ray_dir, map_dist);
+            vec3 normal = map_normal(camera_pos + ray_len * ray_dir, coc);
             float toward_camera = -dot(normal, ray_dir);
             if (toward_camera > 0.) {
                 float alpha = toward_camera * smoothstep(coc, 0., map_dist);
