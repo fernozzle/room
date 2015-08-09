@@ -17,18 +17,28 @@ float sphere_map(vec3 p, vec3 center, float radius) {
     return distance(p, center) - radius;
 }
 
-float map(vec3 p) {
+// Material data: 3 channels & index
+//   Index [0, 1) = smoothness; RGB = albedo
+float map(in vec3 p, out vec4 material) {
     float dist = box_map(p, vec3(0.), vec3(1.), 0.5);
-    dist = min(dist, sphere_map(p, vec3(2., 0., 0.), 1.));
+    material = vec4(0.1, 0.7, 0.9, 0.);
+    
+    float new_dist = sphere_map(p, vec3(2., 0., 0.), 1.);
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(0.8, 0.1, 0.1, 0.);
+    }
+    
     return dist;
 }
 
 vec3 map_normal(vec3 p, float epsilon) {
+    vec4 mat;
     vec2 offset = vec2(epsilon, 0.);
     vec3 diff = vec3(
-        map(p + offset.xyy) - map(p - offset.xyy),
-        map(p + offset.yxy) - map(p - offset.yxy),
-        map(p + offset.yyx) - map(p - offset.yyx)
+        map(p + offset.xyy, mat) - map(p - offset.xyy, mat),
+        map(p + offset.yxy, mat) - map(p - offset.yxy, mat),
+        map(p + offset.yyx, mat) - map(p - offset.yyx, mat)
     );
     return normalize(diff);
 }
@@ -55,11 +65,13 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec4 col = vec4(0., 1., 0., 0.);
     
+    vec4 mat;
     float ray_len = 0.;
     float map_dist = 123.;
+    int iters = 0;
     for (int i = 0; i < 50; i++) {
         if (ray_len > 100. || col.a > MAX_ALPHA) continue; 
-        map_dist = map(camera_pos + ray_len * ray_dir);
+        map_dist = map(camera_pos + ray_len * ray_dir, mat);
         float coc = cocSize(ray_len);
         
         if(abs(map_dist) < coc) {
@@ -70,10 +82,12 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 vec3 surface_color = vec3(0.);
                 surface_color += vec3(0.8, 0.1, 0.1) * max(dot(normal, normalize(vec3(-0.4, 1., -0.3))), 0.);
                 
+                // "Alpha-under"ing surface_color/alpha beneath col
                 col = vec4((col.rgb * col.a + surface_color * alpha) / (col.a + alpha), mix(col.a, 1., alpha));
             }
         }
         
+        iters++;
         ray_len += max(map_dist - .5 * coc, .5 * coc);
     }
     
