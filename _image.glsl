@@ -56,41 +56,11 @@ float shelf_map(vec3 p) {
 // Material data: 3 channels & index
 //   Index [0, 1) = smoothness; RGB = albedo
 float map(in vec3 p, out vec4 material) {
-    float dist = box_map2(p, vec3(0.), vec3(.25), 0.125);
-    material = vec4(0.4, 0.7, 0.9, 0.5);
+    float dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
+    material = vec4(.77, .15, .16, 0.5);
     
-    float new_dist = sphere_map(p, vec3(sin(iGlobalTime * 2.5) * .2 + .5, 0., 0.), .25);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(0.8, 0.1, 0.1, 0.5);
-    }
-    
-    new_dist = sphere_map(p, vec3(0., 0., sin(iGlobalTime * 1.) * .25 + .75), .125);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(0.9, 0.9, 0.3, 1.);
-    }
-    
-    new_dist = box_map2(p, vec3(0.125, -.25, 0.025), vec3(.2, 0., .5), .05);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(1., 1., 1., 0.3);
-    }
-    
-    new_dist = box_map2(p, vec3(-.625, 0., 0.), vec3(.1, .1, .1), 0.1);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(1., .5, .2, 0.5);
-    }
-    
-    // Walls
-    new_dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(.77, .15, .16, 0.5);
-    }
     // Floor
-    new_dist = p.z;
+    float new_dist = p.z;
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.5, .27, .14, 0.4);
