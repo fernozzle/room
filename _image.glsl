@@ -23,6 +23,9 @@ float walls_map(vec3 p, vec2 size) {
     p.xy = abs(p.xy) - size * .5;
     return -max(p.x, p.y);
 }
+float pillar_map(vec3 p, float radius) {
+    return length(p.xy) - radius;
+}
 
 // Material data: 3 channels & index
 //   Index [0, 1) = smoothness; RGB = albedo
@@ -55,14 +58,20 @@ float map(in vec3 p, out vec4 material) {
     }
     
     // Walls
-    new_dist = walls_map(p - vec3(-1.1, -.95, 1.2), vec2(5.8, 5.5));
+    new_dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(1., 1., 1., 0.5);
+    }
+    // Floor
+    new_dist = p.z;
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 0.5);
     }
     
-    // Floor
-    new_dist = p.z;
+    // Pillars
+    new_dist = min(pillar_map(p - vec3(.7, 2.3, 0.), .12), pillar_map(p - vec3(-2.14, 2.3, 0.), .12));
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 0.5);
@@ -149,13 +158,13 @@ vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, v
 }
 
 float cocSize(float dist) {
-    //return 1. / iResolution.y * dist;
-    return (sin(iGlobalTime * 3.) * 4. + 5.) / iResolution.y * dist;
+    return 2. / iResolution.y * dist;
+    //return (sin(iGlobalTime * 3.) * 4. + 5.) / iResolution.y * dist;
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
-    vec3 camera_pos = vec3(0., -2., 0.) + vec3(mouse_normalized.x, 0., mouse_normalized.y) * 2.;
+    vec3 camera_pos = vec3(0., -2., 2.) + vec3(mouse_normalized.x, 0., mouse_normalized.y) * 2.;
     
     vec3 camera_target = vec3(0., 0., 0.);
     vec3 camera_dir = normalize(camera_target - camera_pos);
@@ -212,7 +221,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         ray_len += max(map_dist - .5 * coc, .3 * coc);
     }
     
-    col = vec4(sqrt(mix(bg, col.rgb, min(col.a / MAX_ALPHA, 1.))), 1.);
+    col = vec4(sqrt(col.rgb), 1.);
     
-	fragColor = vec4(col);
+	fragColor = col;
 }
