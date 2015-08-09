@@ -4,6 +4,10 @@
 #define MAX_ALPHA .9
 #define NORMAL_EPSILON .01
 
+float rand(vec2 co){
+	return fract(sin(iGlobalTime * dot(co * 0.123, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 vec2 normalize_pixel_coords(vec2 pixel_coords) {
     return (pixel_coords * 2. - iResolution.xy) / iResolution.y;
 }
@@ -83,20 +87,20 @@ float map(in vec3 p, out vec4 material) {
     new_dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(.77, .1, .16, 0.5);
+        material = vec4(.77, .15, .16, 0.5);
     }
     // Floor
     new_dist = p.z;
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(1., 1., 1., 0.5);
+        material = vec4(.5, .27, .14, 0.4);
     }
     
     // Pillars
     new_dist = min(pillar_map(p - vec3(.7, 2.3, 0.), .12), pillar_map(p - vec3(-2.14, 2.3, 0.), .12));
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(1., 1., 1., 0.5);
+        material = vec4(.95, .94, .91, 0.5);
     }
     
     // Shelf
@@ -195,7 +199,7 @@ vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, v
 }
 
 float coc_size(float dist) {
-    return 20. / iResolution.y * dist;
+    return 2. / iResolution.y * dist;
     //return (sin(iGlobalTime * 3.) * 2. + 3.) / iResolution.y * dist;
 }
 
@@ -266,7 +270,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         }
         
         iters++;
-        ray_len += max(map_dist - .5 * coc, .3 * coc);
+        ray_len += max(map_dist - .5 * coc, .3 * coc)/* * mix(1., 0.9, rand(fragCoord.xy))*/;
     }
     
     if (col == vec4(0., 1., 0., 0.)) {
