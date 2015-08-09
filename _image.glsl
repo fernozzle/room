@@ -21,9 +21,8 @@ vec3 map_normal(vec3 p, float pval) {
     return normalize(diff);
 }
 
-float bell(float a, float b, float t){
-	t=2.*clamp((t-a)/(b-a),0.,1.)-1.;
-	return 1.-t*t;
+float bell(float width, float x){
+    return smoothstep(width, 0., x);
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -48,15 +47,17 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float ray_len = 0.;
     float map_dist = 123.;
     for (int i = 0; i < 50; i++) {
-        if (ray_len > 100. || map_dist < 0.01) continue; 
+        if (ray_len > 100. || col.a > 0.9) continue; 
         map_dist = map(camera_pos + ray_len * ray_dir);
         
         if(abs(map_dist) < coc) {
             vec3 normal = map_normal(camera_pos + ray_len * ray_dir, map_dist);
             float toward_camera = -dot(normal, ray_dir);
             if (toward_camera > 0.) {
-                float alpha = toward_camera * (1.0 - col.a) * bell(-coc, coc, map_dist);
-				col+=vec4(vec3(1., 0., 0.)*0.2*alpha,alpha);//blend in the new color
+                float alpha = toward_camera * (1.0 - col.a) * bell(coc, map_dist);
+                vec3 surface_color = vec3(0.);
+                surface_color += vec3(0.8, 0.1, 0.1) * max(dot(normal, normalize(vec3(-0.4, 1., -0.3))), 0.);
+				col += vec4(surface_color * alpha, alpha);
             }
         }
         
@@ -64,7 +65,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     }
     map_dist = map(camera_pos + ray_len * ray_dir);
     
-    col = vec4(mix(bg, col.rgb, col.a), 1.);
+    col = vec4(sqrt(mix(bg, col.rgb, col.a)), 1.);
     
 	fragColor = vec4(col);
 }
