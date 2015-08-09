@@ -21,7 +21,7 @@ float sphere_map(vec3 p, vec3 center, float radius) {
 //   Index [0, 1) = smoothness; RGB = albedo
 float map(in vec3 p, out vec4 material) {
     float dist = box_map(p, vec3(0.), vec3(1.), 0.5);
-    material = vec4(0.1, 0.7, 0.9, 0.);
+    material = vec4(0.4, 0.8, 0.9, 0.);
     
     float new_dist = sphere_map(p, vec3(2., 0., 0.), 1.);
     if (new_dist < dist) {
@@ -44,7 +44,7 @@ vec3 map_normal(vec3 p, float epsilon) {
 }
 
 float cocSize(float dist) {
-    return 1. / iResolution.y * dist;
+    return 10. / iResolution.y * dist;
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -80,10 +80,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
             if (toward_camera > 0.) {
                 float alpha = toward_camera * smoothstep(coc, 0., map_dist);
                 vec3 surface_color = vec3(0.);
-                surface_color += vec3(0.8, 0.1, 0.1) * max(dot(normal, normalize(vec3(-0.4, 1., -0.3))), 0.);
+                surface_color += mat.rgb * max(dot(normal, normalize(vec3(-0.4, 1., -0.3))), 0.);
                 
                 // "Alpha-under"ing surface_color/alpha beneath col
-                col = vec4((col.rgb * col.a + surface_color * alpha) / (col.a + alpha), mix(col.a, 1., alpha));
+                float added_coverage = alpha * (1. - col.a);
+                col = vec4(
+                    (col.rgb * col.a + surface_color * added_coverage) / (col.a + added_coverage),
+                    mix(col.a, 1., alpha)
+                );
             }
         }
         
