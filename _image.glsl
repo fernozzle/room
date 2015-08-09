@@ -1,5 +1,6 @@
 #define TWO_PI 6.2831853
 #define VERTICAL_FOV 40.
+#define MAX_ALPHA .9
 
 vec2 normalize_pixel_coords(vec2 pixel_coords) {
     return (pixel_coords * 2. - iResolution.xy) / iResolution.y;
@@ -49,7 +50,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float ray_len = 0.;
     float map_dist = 123.;
     for (int i = 0; i < 50; i++) {
-        if (ray_len > 100. || col.a > 0.9) continue; 
+        if (ray_len > 100. || col.a > MAX_ALPHA) continue; 
         map_dist = map(camera_pos + ray_len * ray_dir);
         float coc = cocSize(ray_len);
         
@@ -69,7 +70,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         ray_len += map_dist;
     }
     
-    col = vec4(sqrt(mix(bg, col.rgb, col.a)), 1.);
+    col = vec4(sqrt(mix(bg, col.rgb, min(col.a / MAX_ALPHA, 1.))), 1.);
     
 	fragColor = vec4(col);
 }
