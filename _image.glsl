@@ -6,11 +6,19 @@ vec2 normalize_pixel_coords(vec2 pixel_coords) {
     return (pixel_coords * 2. - iResolution.xy) / iResolution.y;
 }
 
+float box_map(vec3 p, vec3 center, vec3 size, float radius) {
+    vec3 lower_bound = center - size;
+    vec3 upper_bound = center + size;
+    vec3 temp = min(max(p, lower_bound), upper_bound);
+    return distance(p, temp) - radius;
+}
+
+float sphere_map(vec3 p, vec3 center, float radius) {
+    return distance(p, center) - radius;
+}
+
 float map(vec3 p) {
-    vec3 box_center = vec3(0.);
-    vec3 box_radius = vec3(1., 1., 1.);
-    vec3 t = min(max(p, box_center - box_radius), box_center + box_radius);
-    return distance(p, t) - 0.5;
+    return box_map(p, vec3(0.), vec3(1.), 0.5);
 }
 
 vec3 map_normal(vec3 p, float epsilon) {
@@ -45,8 +53,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec4 col = vec4(0., 1., 0., 0.);
     
-    //float coc = sin(iGlobalTime * 2.) * .4 + .5;
-    float coc = 0.1;
     float ray_len = 0.;
     float map_dist = 123.;
     for (int i = 0; i < 50; i++) {
