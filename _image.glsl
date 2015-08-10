@@ -76,12 +76,23 @@ float couch_map(vec3 p) {
     vec3 back_edge = vec3(back_near_center.x, back_near_center.yz + (p_rel / l) * min(l, .11));
     float back_distance = distance(p_transf, back_edge) - .03;
     
+    // Back rest wrinkles
+    
+    p.x += .2;
+    float wrinkle_skew = p.z - .6*p.x*p.x/p.z;
+    float wrinkle = (sin((wrinkle_skew) * 60.) + 1.) * .005;
+    wrinkle *= 1. / (pow(wrinkle_skew - .5, 2.) * 8. + 1.);
+    wrinkle /= (pow(p.x, 4.)*5. + 1.);
+    wrinkle *= smoothstep(.85, .7, p.z);
+    wrinkle = smoothstep(-.05, .1, wrinkle) * .06;
+    back_distance += wrinkle;
+    
     return min(seat_distance, back_distance);
 }
 float curtain_map(vec3 p) {
     vec3 temp = vec3(clamp(p.x, -.6, .6), 0., p.z);
     float dist = distance(p, temp) - .2;
-    dist += sin(p.x * 10. + sin(p.x * 3.1) * (5. + sin(p.z * 2.) * 3.)) * .03;
+    dist += sin(p.x * 20. + sin(p.x * 6.2) * (5. + sin(p.z * 2.) * 3.)) * .03;
     return dist;
 }
 
@@ -181,7 +192,7 @@ float ao(vec3 p, vec3 normal, float coc) {
         brightness *= clamp(map_dist / len + len * ao_size, 0., 1.);
         len += map_dist + .5 * coc;
     }
-    return pow(brightness, .2);
+    return pow(brightness, .3);
 }
 
 vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, vec3 ray_dir) {
@@ -225,38 +236,52 @@ float coc_size(float dist) {
     //return (sin(iGlobalTime * 3.) * 2. + 3.) / iResolution.y * dist;
 }
 
+float length_pow(vec3 d, float p) {
+    return pow(pow(d.x, p) + pow(d.y, p) + pow(d.z, p), 1. / p);
+}
+
 vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
     vec3 surface_color = vec3(0.);
     if (mat.a < 1.) {
+  	 	// Standard shading
 
+        float amb_occ = ao(p, normal, coc);
         vec3 light_pos = vec3(-1.5, sin(iGlobalTime * 1.) * 1.5, 2.);
 
         light_pos = vec3(-1., 1.8, 1.2);
         vec3 light_dir = normalize(light_pos - p);
         vec3 light_intensity;
         light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, coc, .1);
-        surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8;
+        surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8 * amb_occ;
 
         light_pos = vec3(-3., -.57, 1.6);
         light_dir = normalize(light_pos - p);
         light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
-        surface_color += light_intensity * vec3(.4, .6, .8) * .1;
+        surface_color += light_intensity * vec3(.4, .6, .8) * .1 * amb_occ;
 
         light_pos = vec3(2., -1.17, 1.25);
         light_dir = normalize(light_pos - p);
         light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
-        surface_color += light_intensity * vec3(1., 0.7, 0.5) * .4 * ao(p, normal, coc);
+        surface_color += light_intensity * vec3(1., 0.7, 0.5) * .4 * amb_occ;
 
         //surface_color += mat.rgb * ao(p, normal, coc) * vec3(0.2, 0.8, 1.) * .1;
 
         return surface_color;
     } else {
-        float mix_fac = pow(dot(normal, vec3(0., -1., 0.)), 2.);
-        mix_fac *= -dot(ray_dir, normal);
-        vec3 transmission_color = pow(vec3(.3, .25, .2), vec3(distance(p, vec3(-.8, 2.2, 1.2))));
-        surface_color = mix(vec3(.3, .1, .1) * .3, transmission_color, mix_fac);
-        float stripe = smoothstep(-.1, .1, sin(p.z * 120.));
-        surface_color *= stripe;
+        // Curtain shading
+        vec3 wall_color = vec3(.3, .1, .1) * .3;
+        float shade_fac = pow(dot(normal, vec3(0., -1., 0.)), 2.);
+        shade_fac *= -dot(ray_dir, normal);
+        float power = 2.;
+        float windowness = pow(length_pow((p - vec3(-.8, 2.2, 2.)) * vec3(2., 1., 1.), 4.), 3.);
+        vec3 transmission_color = pow(vec3(.3, .25, .2), vec3(windowness)) * 2.;
+        surface_color = mix(wall_color, transmission_color, shade_fac);
+        
+        float stripe = smoothstep(-.1, .1, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
+        vec3 stripe_color = vec3(.08, .05, .06) * shade_fac/* + vec3(1.) * pow(shade_fac, 10.)*/;
+        stripe_color = mix(stripe_color, wall_color, .5 * pow(1. - shade_fac, 5.));
+        //stripe_color
+        surface_color = mix(surface_color, stripe_color, stripe);
         return surface_color;
     }
 }
@@ -264,13 +289,13 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
     vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 3.);
-     /*
+    // /*
     camera_pos = vec3(.232, .792, 1.10);
     camera_pos = mix(camera_pos, vec3(-.67, .11, 1.12), mouse_normalized.x);
 	// */ 
 
     vec3 camera_target = vec3(0., 1., 0.);
-     /*
+    // /*
     camera_target = vec3(-1.82, 1.72, .84);
     camera_target = mix(camera_target, vec3(-.17, 1.31, .70), mouse_normalized.x);
 	// */
@@ -282,7 +307,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec2 uv = normalize_pixel_coords(fragCoord);
     float fov = 80.;
-     /*
+    // /*
     fov = 33.4;
     fov = mix(fov, 47.3, mouse_normalized.x);
 	// */
