@@ -114,27 +114,38 @@ float person_map(vec3 p, out vec4 mat) {
     p.x = abs(p.x); // Symmetrical
     
     // Head
-    float dist = length(p) - .08;
-    dist = smin(dist, distance(p, vec3(.0, .05, -.05)) - .01, .08);
-    float jaw_dist = sdCapsule(p, vec3(.05, .01, -.10), vec3(0., .07, -.11), .005);
+    float dist = distance(p, vec3(.0, .01, .0)) - .08;
+    dist = smin(dist, distance(p, vec3(.0, .06, -.05)) - .01, .08);
+    float jaw_dist = sdCapsule(p, vec3(.05, .02, -.10), vec3(0., .08, -.11), .005);
     dist = smin(dist, jaw_dist, .1);
-    float cheek_dist = distance(p, vec3(.04, .03, -.04)) - .01;
+    float cheek_dist = distance(p, vec3(.04, .04, -.04)) - .01;
     dist = smin(cheek_dist, dist, .05);
-    float nose_dist = sdCapsule(p, vec3(.0, .08, -.03), vec3(0., .10, -.06), .002);
+    float nose_dist = sdCapsule(p, vec3(.0, .09, -.03), vec3(0., .11, -.06), .002);
     dist = smin(dist, nose_dist, .04);
     
-    float neck_dist = sdCapsule(p, vec3(.0, -.01, -.06), vec3(.0, -.01, -.20), .04);
+    float neck_dist = sdCapsule(p, vec3(.0, .0, -.06), vec3(.0, .0, -.20), .04);
     dist = smin(dist, neck_dist, .02);
     
     float mult = 3.;
-    mat = vec4(1. * mult, .72 * mult, .51 * mult, 2.);
+    mat = vec4(1. * mult, .77 * mult, .65 * mult, 2.);
     
-    float eye_dist = distance(p, vec3(.025, .09, -.02)) - .005;
+    float eye_dist = length((p - vec3(.025, .10, -.02)) * vec3(1., 1., .8)) - .005;
     if (eye_dist < dist) {
         dist = eye_dist;
         mat = vec4(0., 0., 0., 0.3);
     }
     
+    float body_top = -.14;
+    float body_radius = (p.z - body_top) * -.15 + .045;
+    float l = length(p.xy);
+    vec3 body_near = vec3(p.xy / l * min(l, body_radius), clamp(p.z, -.5, body_top));
+    float body_dist = distance(p, body_near) - .005;
+    body_dist = smin(body_dist, sdCapsule(p, vec3(.0, .0, -.15), vec3(.2, .0, -.3), .04), .02);
+    
+    if (body_dist < dist) {
+        dist = body_dist;
+        mat = vec4(1., 1., 1., 0.9);
+    }
 
     return dist;
 }
@@ -191,8 +202,8 @@ float map(in vec3 p, out vec4 material) {
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 1.);
-    }
-    */
+    }*/
+    
     // Person
     vec4 new_mat;
     new_dist = person_map(p - vec3(0., .5, 1.), new_mat);
@@ -351,9 +362,9 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
         }
         vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(pow(light, -.2)));
         
-        surface_color = light_standard(p, coc, mat.rgb, mat.a, normal, ray_dir);
+        surface_color = light_standard(p, coc, mat.rgb, .7, normal, ray_dir);
 
-        return mix(surface_color, subsurface_color, 0.3);
+        return mix(surface_color, subsurface_color, .3);
     }
 }
 
