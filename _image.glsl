@@ -107,17 +107,30 @@ float sdCapsule( vec3 p, vec3 a, vec3 b, float r )
     float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
     return length( pa - ba*h ) - r;
 }
-float person_map(vec3 p) {
+//struct Person {
+    
+float person_map(vec3 p, out vec4 mat) {
     p.xy = -p.xy;
     p.x = abs(p.x);
     float dist = length(p) - .08;
     dist = smin(dist, distance(p, vec3(.0, .05, -.05)) - .01, .08);
-    float jaw_dist = sdCapsule(p, vec3(.05, .01, -.11), vec3(0., .07, -.13), .005);
+    float jaw_dist = sdCapsule(p, vec3(.05, .01, -.10), vec3(0., .07, -.11), .005);
     dist = smin(dist, jaw_dist, .1);
     float cheek_dist = distance(p, vec3(.04, .03, -.04)) - .01;
     dist = smin(cheek_dist, dist, .05);
-    float nose_dist = sdCapsule(p, vec3(.0, .08, -.03), vec3(0., .1, -.06), .002);
+    float nose_dist = sdCapsule(p, vec3(.0, .08, -.03), vec3(0., .10, -.06), .002);
     dist = smin(dist, nose_dist, .04);
+    
+    float mult = 3.;
+    mat = vec4(1. * mult, .72 * mult, .51 * mult, 2.);
+    
+    float eye_dist = distance(p, vec3(.025, .09, -.02)) - .005;
+    if (eye_dist < dist) {
+        dist = eye_dist;
+        mat = vec4(0., 0., 0., 0.3);
+    }
+    
+
     return dist;
 }
 
@@ -176,11 +189,11 @@ float map(in vec3 p, out vec4 material) {
     }
     */
     // Person
-    new_dist = person_map(p - vec3(0., .5, 1.));
+    vec4 new_mat;
+    new_dist = person_map(p - vec3(0., .5, 1.), new_mat);
     if (new_dist < dist) {
         dist = new_dist;
-        float mult = 3.;
-        material = vec4(1. * mult, .72 * mult, .51 * mult, 2.);
+        material = new_mat;
     }
     
     return dist;
@@ -318,7 +331,6 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
         float stripe = smoothstep(-.1, .1, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
         vec3 stripe_color = vec3(.08, .05, .06) * shade_fac/* + vec3(1.) * pow(shade_fac, 10.)*/;
         stripe_color = mix(stripe_color, wall_color, .5 * pow(1. - shade_fac, 5.));
-        //stripe_color
         surface_color = mix(surface_color, stripe_color, stripe);
         return surface_color;
     } else {
@@ -326,7 +338,7 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
         vec4 mat;
         float light = 1.;
         float soft = 0.;
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 8; i++) {
             float dist = map(p, mat);
             light *= smoothstep(-soft, soft, dist);
             p    += light_dir * .01;
