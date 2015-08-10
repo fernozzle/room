@@ -107,10 +107,9 @@ float sdCapsule( vec3 p, vec3 a, vec3 b, float r )
     float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
     return length( pa - ba*h ) - r;
 }
-//struct Person {
     
-float person_map(vec3 p, out vec4 mat) {
-    p.xy = -p.xy;
+float person_map(vec3 p, float lisaness, out vec4 mat) {
+    //p.xy = -p.xy;
     p.x = abs(p.x); // Symmetrical
     
     // Head
@@ -144,10 +143,24 @@ float person_map(vec3 p, out vec4 mat) {
     
     if (body_dist < dist) {
         dist = body_dist;
-        mat = vec4(1., 1., 1., 0.9);
+        mat = mix(vec4(.30, .25, .21, .9), vec4(3., 2., 2., .9), lisaness);
+    }
+    
+    float stick_dist = sdCapsule(p, vec3(0., 0., -.4), vec3(0., 0., -10.), .02);
+    if (stick_dist < dist) {
+        dist = stick_dist;
+        mat = vec4(.9, .52, .3, .6);
     }
 
     return dist;
+}
+vec3 get_pos(vec3 p, vec3 dir_y) {
+    vec3 dir_x = normalize(cross(dir_y, vec3(0., 0., 1.)));
+    vec3 dir_z = normalize(cross(dir_x, dir_y));
+    return vec3(dot(p, dir_x), dot(p, dir_y), dot(p, dir_z));
+}
+float anim_fac(float time, float start, float len) {
+    return smoothstep(start, start + len, time);
 }
 
 // Material data: 3 channels & index
@@ -155,20 +168,23 @@ float person_map(vec3 p, out vec4 mat) {
 float map(in vec3 p, out vec4 material) {
     float dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
     material = vec4(.77, .15, .16, 0.8);
+    
     // Floor
-    float new_dist = p.z;
+    float new_dist;
+    new_dist = p.z;
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.5, .27, .14, 0.4);
     }
-    /*
+    
+    
     // Pillars
     new_dist = min(pillar_map(p - vec3(.7, 2.3, 0.), .12), pillar_map(p - vec3(-2.14, 2.3, 0.), .12));
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.95, .94, .91, 0.5);
     }
-    
+
     // Shelf
     new_dist = shelf_map(p - vec3(-3.3, 2.3, 0.));
     if (new_dist < dist) {
@@ -196,17 +212,121 @@ float map(in vec3 p, out vec4 material) {
         dist = new_dist;
         material = vec4(.76, .52, .33, 0.9);
     }
-    
+
     // Curtains
     new_dist = curtain_map(p - vec3(-.8, 2.3, 1.5));
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 1.);
-    }*/
+    }
+
+    // Johnny
+    float time = iGlobalTime;
+    vec4 new_mat = vec4(0.);
+    vec3 pos = vec3(-.41, 1.11, 1.24);
+    vec3 dir_y = vec3(1., .5, .3);
     
-    // Person
-    vec4 new_mat;
-    new_dist = person_map(p - vec3(0., .5, 1.), new_mat);
+    float fac = anim_fac(time, 0., .8);
+    pos   = mix(pos,   vec3(-0.41,  1.16,   .86), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.20, -0.20), fac);
+    
+    fac = anim_fac(time, .7, .8);
+    pos   = mix(pos,   vec3(-0.45,  1.15,  0.87), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.20), fac);
+    
+    fac = anim_fac(time, 1.9, .7);
+    pos   = mix(pos,   vec3(-0.48,  1.16,  0.85), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.30), fac);
+    
+    fac = anim_fac(time, 2.8, .5);
+    pos   = mix(pos,   vec3(-0.48,  1.16,  0.82), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.35, -0.15), fac);
+    
+    fac = anim_fac(time, 3.3, .6);
+    pos   = mix(pos,   vec3(-0.48,  1.16,  0.84), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.37, -0.14), fac);
+    
+    fac = anim_fac(time, 4.6, .7);
+    pos   = mix(pos,   vec3(-0.44,  1.16,  0.86), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.37, -0.20), fac);
+    
+    fac = anim_fac(time, 5.2, .8);
+    pos   = mix(pos,   vec3(-0.46,  1.16,  0.85), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.16), fac);
+    
+    fac = anim_fac(time, 5.9, .9);
+    pos   = mix(pos,   vec3(-0.46,  1.16,  0.86), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.10, -0.18), fac);
+    
+    fac = anim_fac(time, 7.0, .6);
+    pos   = mix(pos,   vec3(-0.48,  1.16,  0.87), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.05), fac);
+    
+    fac = anim_fac(time, 7.9, .5);
+    pos   = mix(pos,   vec3(-0.44,  1.16,  0.85), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.10), fac);
+    
+    fac = anim_fac(time, 8.5, .6);
+    pos   = mix(pos,   vec3(-0.44,  1.16,  0.86), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.35, -0.08), fac);
+    
+    fac = anim_fac(time, 9.0, 2.2);
+    pos   = mix(pos,   vec3(-0.44,  1.15,  0.86), fac);
+    dir_y = mix(dir_y, vec3( 1.00,  0.25, -0.06), fac);
+    
+    // You're lying; cut at 11.6
+    
+    fac = anim_fac(time, 11.5, 1.2);
+    pos   = mix(pos,   vec3(-0.65, 0.66,  1.55), fac);
+    dir_y = mix(dir_y, vec3( 1.00, 0.5, -0.02), fac);
+    
+    fac = anim_fac(time, 11.9, 1.2);
+    pos   = mix(pos,   vec3(-0.66, 0.43, 1.55), fac);
+    dir_y = mix(dir_y, vec3( 1.00, 1.7,  0.03), fac);
+    
+    fac = anim_fac(time, 13.3, .5);
+    pos   = mix(pos,   vec3(-0.63, 0.46, 1.54), fac);
+    dir_y = mix(dir_y, vec3( 1.00, 1.7,  -0.04), fac);
+    
+    // YOU'RE TEARING ME APART LISA
+    
+    fac = anim_fac(time, 14.4, .5);
+    pos   = mix(pos,   vec3(-0.69, 0.47, 1.52), fac);
+    dir_y = mix(dir_y, vec3( 1.00, .6,  0.50), fac);
+    
+    fac = anim_fac(time, 15.0, .8);
+    pos   = mix(pos,   vec3(-0.69, 0.47, 1.56), fac);
+    dir_y = mix(dir_y, vec3( 1.00, .5,  0.4), fac);
+    
+    fac = anim_fac(time, 15.7, .4);
+    pos   = mix(pos,   vec3(-0.69, 0.47, 1.46), fac);
+    dir_y = mix(dir_y, vec3( 1.00, 1.2,  0.3), fac);
+    
+    fac = anim_fac(time, 16.2, .7);
+    pos   = mix(pos,   vec3(-0.70, 0.49, 1.54), fac);
+    dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.02), fac);
+    
+    // Do you understand life?
+    
+    fac = anim_fac(time, 18.8, 1.1);
+    pos   = mix(pos,   vec3(-0.55, 0.70, 1.52), fac);
+    dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.10), fac);
+    
+    fac = anim_fac(time, 19.8, 1.2);
+    pos   = mix(pos,   vec3(-0.50, 0.60, 1.28), fac);
+    dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.10), fac);
+    
+    fac = anim_fac(time, 20.4, 1.);
+    pos   = mix(pos,   vec3(-0.50, 1., 1.0), fac);
+    dir_y = mix(dir_y, vec3( 1.00, .2,  -.05), fac);
+    
+    // Do you?
+    
+    fac = anim_fac(time, 21.5, .8);
+    pos   = mix(pos,   vec3(-0.45, 1., 1.0), fac);
+    dir_y = mix(dir_y, vec3( 1.00, .2,  -.1), fac);
+    
+    new_dist = person_map(get_pos(p - pos, normalize(dir_y)), 0., new_mat);
     if (new_dist < dist) {
         dist = new_dist;
         material = new_mat;
@@ -326,8 +446,13 @@ vec3 light_standard(vec3 p, float coc, vec3 albedo, float roughness, vec3 normal
 }
 
 vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
-    vec3 surface_color = vec3(0.);
+    // Used only for skin
+    vec4 temp_mat;
+    vec3 light_dir = normalize(window_light_pos - p);
+    float soft = .04;
+    float light = smoothstep(-soft, soft, map(p + light_dir * soft, temp_mat));
     
+    vec3 surface_color = vec3(0.);
     if (mat.a < 1.) {
   	 	// Standard shading
 
@@ -350,18 +475,8 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
         surface_color = mix(surface_color, stripe_color, stripe);
         return surface_color;
     } else {
-        vec3 light_dir = normalize(window_light_pos - p);
-        vec4 mat;
-        float light = 1.;
-        float soft = 0.;
-        for (int i = 0; i < 8; i++) {
-            float dist = map(p, mat);
-            light *= smoothstep(-soft, soft, dist);
-            p    += light_dir * .01;
-            soft += .01;
-        }
-        vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(pow(light, -.2)));
-        
+        // Skin shading
+        vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(1. / light));
         surface_color = light_standard(p, coc, mat.rgb, .7, normal, ray_dir);
 
         return mix(surface_color, subsurface_color, .3);
@@ -369,30 +484,51 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    float time = iGlobalTime;
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
+    
+    float camera_switch = mouse_normalized.x * .5 + .5;
+    if (camera_switch < 0.01) { // Mouse not touched
+        // Cuts
+    	camera_switch = mix(camera_switch, 1., step( 2.8, time));
+    	camera_switch = mix(camera_switch, 0., step( 7.2, time));
+    	camera_switch = mix(camera_switch, 1., step( 9.7, time));
+    	camera_switch = mix(camera_switch, 0., step(11.6, time));
+    	camera_switch = mix(camera_switch, 1., step(13.2, time));
+    	camera_switch = mix(camera_switch, 0., step(14.5, time));
+    	camera_switch = mix(camera_switch, 1., step(17.2, time));
+    	camera_switch = mix(camera_switch, 0., step(18.9, time));
+    	camera_switch = mix(camera_switch, 1., step(19.4, time));
+    	camera_switch = mix(camera_switch, 0., step(21.6, time));
+    }
+    
+    float camera1_transition  = anim_fac(time, 10.0, 0.1);
+    float camera1_transition2 = anim_fac(time, 20.5, 0.1);
+    float camera2_transition  = anim_fac(time, 12.5, 0.1);
+    float camera2_transition2 = anim_fac(time, 19.4, 1.0);
+    
     vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 8.);
-     /*
-    camera_pos = vec3(.232, .792, 1.10);
-    camera_pos = mix(camera_pos, vec3(-.67, .11, 1.12), mouse_normalized.x);
-	// */ 
+    vec3 camera1_pos = mix(vec3(.832, .892, 0.90), vec3(.23, .79, 1.32), camera1_transition);
+    camera1_pos = mix(camera1_pos, vec3(.6, .7, 0.90), camera1_transition2);
+    vec3 camera2_pos = mix(vec3(-.67, .11, 1.12), vec3(-.80, .00, 1.50), camera2_transition);
+    camera_pos = mix(camera1_pos, camera2_pos, camera_switch);
 
     vec3 camera_target = vec3(0., .5, 1.);
-     /*
-    camera_target = vec3(-1.82, 1.72, .84);
-    camera_target = mix(camera_target, vec3(-.17, 1.31, .70), mouse_normalized.x);
-	// */
+    vec3 camera1_target = mix(vec3(-1.62, 1.82, .64), vec3(-1.01, 0.47, 1.57), camera1_transition);
+    camera1_target = mix(camera1_target, vec3(-0.55, 1.1, .95), camera1_transition2);
+    vec3 camera2_target = mix(vec3(-0.17, 1.31, .70), vec3(-0.09, 1.06, 1.44), camera2_transition);
+    camera2_target = mix(camera2_target, vec3(-0.17, 1.21, .70), camera2_transition2);
+    camera_target = mix(camera1_target, camera2_target, camera_switch);
     
     vec3 camera_dir = normalize(camera_target - camera_pos);
-    
     vec3 camera_right = normalize(cross(camera_dir, vec3(0., 0., 1.)));
     vec3 camera_up    = normalize(cross(camera_right, camera_dir));
     
     vec2 uv = normalize_pixel_coords(fragCoord);
     float fov = 80.;
-     /*
-    fov = 33.4;
-    fov = mix(fov, 47.3, mouse_normalized.x);
-	// */
+    float camera1_fov = 33.4;
+    float camera2_fov = 47.3;
+    fov = mix(camera1_fov, camera2_fov, camera_switch);
     
     float ray_spread = tan((fov / 360. * TWO_PI) / 2.);
     vec3 ray_dir = camera_dir + ((uv.x * camera_right) + (uv.y * camera_up)) * ray_spread;
@@ -410,7 +546,21 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 normal;
     float coc;
     vec4 mat;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 100; i++) {
+        if (ray_len > 100. || map_dist < .001) continue; 
+        point = camera_pos + ray_len * ray_dir;
+        map_dist = map(point, mat);
+        ray_len += map_dist * STEP_SCALE;
+    }
+    
+    normal = map_normal(point, NORMAL_EPSILON);
+    col = vec4(color_at(point, ray_dir, normal, .0, mat), 1.);
+    col *= smoothstep(0., 2., point.z) * .8 + .2;
+    col *= 1. - length_pow(vec3(uv, 0.), 4.) * .7;
+    
+    col *= 1.8;
+    /* Goodbye AA, DoF, and compile failures
+    for (int i = 0; i < 40; i++) {
         if (ray_len > 100. || col.a > MAX_ALPHA) continue; 
         coc = coc_size(ray_len);
         point = camera_pos + ray_len * ray_dir;
@@ -435,14 +585,16 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         }
         
         iters++;
-        ray_len += max(map_dist - .5 * coc, .3 * coc) * STEP_SCALE/* * mix(1., 0.9, rand(fragCoord.xy))*/;
+        ray_len += max(map_dist - .5 * coc, .3 * coc) * STEP_SCALE;
     }
     
     if (col == vec4(0., 1., 0., 0.)) {
         normal = map_normal(point, NORMAL_EPSILON);
         col = vec4(color_at(point, ray_dir, normal, coc, mat), 1.);
     }
-    
+    */
+    col.rgb = max(col.rgb, vec3(.015));
+    col.rgb = pow(col.rgb, vec3(.95, 1.07, 1.05));
     col = vec4(sqrt(col.rgb), 1.);
     
 	fragColor = col;
