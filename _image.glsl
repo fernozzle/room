@@ -78,13 +78,18 @@ float couch_map(vec3 p) {
     
     return min(seat_distance, back_distance);
 }
-
+float curtain_map(vec3 p) {
+    vec3 temp = vec3(clamp(p.x, -.6, .6), 0., p.z);
+    float dist = distance(p, temp) - .2;
+    dist += sin(p.x * 10. + sin(p.x * 3.1) * (5. + sin(p.z * 2.) * 3.)) * .03;
+    return dist;
+}
 
 // Material data: 3 channels & index
 //   Index [0, 1) = smoothness; RGB = albedo
 float map(in vec3 p, out vec4 material) {
     float dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
-    material = vec4(.77, .15, .16, 0.5);
+    material = vec4(.77, .15, .16, 0.8);
     
     // Floor
     float new_dist = p.z;
@@ -126,6 +131,13 @@ float map(in vec3 p, out vec4 material) {
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.76, .52, .33, 0.9);
+    }
+    
+    // Curtains
+    new_dist = curtain_map(p - vec3(-.8, 2.3, 1.5));
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = vec4(1., 1., 1., 1.);
     }
     
     return dist;
@@ -215,28 +227,38 @@ float coc_size(float dist) {
 
 vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
     vec3 surface_color = vec3(0.);
+    if (mat.a < 1.) {
 
-    vec3 light_pos = vec3(-1.5, sin(iGlobalTime * 1.) * 1.5, 2.);
-    
-    light_pos = vec3(-.9, 1.8, 1.6);
-    vec3 light_dir = normalize(light_pos - p);
-    vec3 light_intensity;
-    light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, coc, .1);
-    surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8;
+        vec3 light_pos = vec3(-1.5, sin(iGlobalTime * 1.) * 1.5, 2.);
 
-    light_pos = vec3(-3., -.57, 1.6);
-    light_dir = normalize(light_pos - p);
-    light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
-    surface_color += light_intensity * vec3(.4, .6, .8) * .1;
-    
-    light_pos = vec3(2., -1.17, 1.25);
-    light_dir = normalize(light_pos - p);
-    light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
-    surface_color += light_intensity * vec3(1., 0.8, 0.6) * .3;
+        light_pos = vec3(-1., 1.8, 1.2);
+        vec3 light_dir = normalize(light_pos - p);
+        vec3 light_intensity;
+        light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, coc, .1);
+        surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8;
 
-    //surface_color += mat.rgb * ao(p, normal, coc) * vec3(0.2, 0.8, 1.) * .1;
-    
-    return surface_color;
+        light_pos = vec3(-3., -.57, 1.6);
+        light_dir = normalize(light_pos - p);
+        light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
+        surface_color += light_intensity * vec3(.4, .6, .8) * .1;
+
+        light_pos = vec3(2., -1.17, 1.25);
+        light_dir = normalize(light_pos - p);
+        light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
+        surface_color += light_intensity * vec3(1., 0.7, 0.5) * .4 * ao(p, normal, coc);
+
+        //surface_color += mat.rgb * ao(p, normal, coc) * vec3(0.2, 0.8, 1.) * .1;
+
+        return surface_color;
+    } else {
+        float mix_fac = pow(dot(normal, vec3(0., -1., 0.)), 2.);
+        mix_fac *= -dot(ray_dir, normal);
+        vec3 transmission_color = pow(vec3(.3, .25, .2), vec3(distance(p, vec3(-.8, 2.2, 1.2))));
+        surface_color = mix(vec3(.3, .1, .1) * .3, transmission_color, mix_fac);
+        float stripe = smoothstep(-.1, .1, sin(p.z * 120.));
+        surface_color *= stripe;
+        return surface_color;
+    }
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
