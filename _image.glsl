@@ -1,19 +1,26 @@
 #define PI 3.141592
 #define TWO_PI 6.2831853
-#define VERTICAL_FOV 80.
+//#define VERTICAL_FOV 80.
 #define MAX_ALPHA .9
 #define NORMAL_EPSILON .01
 // Compensate for distorted distance fields
 #define STEP_SCALE 0.8
 
-float rand(vec2 co){
-	return fract(sin(iGlobalTime * dot(co * 0.123, vec2(12.9898, 78.233))) * 43758.5453);
+// iq's texture noise
+float noise( in vec3 x )
+{
+    vec3 p = floor(x);
+    vec3 f = fract(x);
+	f = f*f*(3.0-2.0*f);
+	
+	vec2 uv = (p.xy+vec2(37.0,17.0)*p.z) + f.xy;
+	vec2 rg = texture2D( iChannel0, (uv+0.5)/256.0, -100.0 ).yx;
+	return mix( rg.x, rg.y, f.z );
 }
 
 vec2 normalize_pixel_coords(vec2 pixel_coords) {
-    return (pixel_coords * 2. - iResolution.xy) / iResolution.y;
+    return (pixel_coords * 2. - iResolution.xy) / iResolution.x;
 }
-
 
 float box_map(vec3 p, vec3 size, float radius) {
     size *= .5;
@@ -60,13 +67,13 @@ float couch_map(vec3 p) {
     
     // Back rest
     vec3 p_transf = p;
-    p_transf.y += pow(p_transf.x, 2.) * .3;
-    p_transf.x *= 1. - .3 * p_transf.y;
+    p_transf.y += pow(p_transf.x, 2.) * .15;
+    p_transf.x *= 1. - p_transf.y * .2;
     
-    vec3 back_near_center = vec3(clamp(p_transf.x, -.86, .86), .6 + .2 * p_transf.z, min(p_transf.z, .78));
+    vec3 back_near_center = vec3(clamp(p_transf.x, -.86, .86), .6 + .15 * p_transf.z, min(p_transf.z, .72));
     p_rel = p_transf.yz - back_near_center.yz;
     l = length(p_rel);
-    vec3 back_edge = vec3(back_near_center.x, back_near_center.yz + (p_rel / l) * min(l, .14));
+    vec3 back_edge = vec3(back_near_center.x, back_near_center.yz + (p_rel / l) * min(l, .11));
     float back_distance = distance(p_transf, back_edge) - .03;
     
     return min(seat_distance, back_distance);
@@ -108,7 +115,7 @@ float map(in vec3 p, out vec4 material) {
     }
     
     // Couch
-    new_dist = couch_map(p - vec3(.2, 1.2, 0.));
+    new_dist = couch_map(p - vec3(.3, 1.0, 0.));
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.76, .52, .33, 0.9);
@@ -217,15 +224,30 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
     vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 3.);
-    
+    /*
+    camera_pos = vec3(.232, .792, 1.10);
+    camera_pos = mix(camera_pos, vec3(-.67, .11, 1.12), mouse_normalized.x);
+	*/    
+
     vec3 camera_target = vec3(0., 1., 0.);
+    /*
+    camera_target = vec3(-1.82, 1.72, .84);
+    camera_target = mix(camera_target, vec3(-.17, 1.31, .70), mouse_normalized.x);
+	*/
+    
     vec3 camera_dir = normalize(camera_target - camera_pos);
     
     vec3 camera_right = normalize(cross(camera_dir, vec3(0., 0., 1.)));
     vec3 camera_up    = normalize(cross(camera_right, camera_dir));
     
     vec2 uv = normalize_pixel_coords(fragCoord);
-    float ray_spread = tan((VERTICAL_FOV / 360. * TWO_PI) / 2.);
+    float fov = 80.;
+    /*
+    fov = 33.4;
+    fov = mix(fov, 47.3, mouse_normalized.x);
+	*/
+    
+    float ray_spread = tan((fov / 360. * TWO_PI) / 2.);
     vec3 ray_dir = camera_dir + ((uv.x * camera_right) + (uv.y * camera_up)) * ray_spread;
     ray_dir = normalize(ray_dir);
     
