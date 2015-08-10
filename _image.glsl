@@ -95,20 +95,44 @@ float curtain_map(vec3 p) {
     dist += sin(p.x * 20. + sin(p.x * 6.2) * (5. + sin(p.z * 2.) * 3.)) * .03;
     return dist;
 }
+// These two are by the one and only iq
+float smin( float a, float b, float k )
+{
+    float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
+    return mix( b, a, h ) - k*h*(1.0-h);
+}
+float sdCapsule( vec3 p, vec3 a, vec3 b, float r )
+{
+    vec3 pa = p - a, ba = b - a;
+    float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
+    return length( pa - ba*h ) - r;
+}
+float person_map(vec3 p) {
+    p.xy = -p.xy;
+    p.x = abs(p.x);
+    float dist = length(p) - .08;
+    dist = smin(dist, distance(p, vec3(.0, .05, -.05)) - .01, .08);
+    float jaw_dist = sdCapsule(p, vec3(.05, .01, -.11), vec3(0., .07, -.13), .005);
+    dist = smin(dist, jaw_dist, .1);
+    float cheek_dist = distance(p, vec3(.04, .03, -.04)) - .01;
+    dist = smin(cheek_dist, dist, .05);
+    float nose_dist = sdCapsule(p, vec3(.0, .08, -.03), vec3(0., .1, -.06), .002);
+    dist = smin(dist, nose_dist, .04);
+    return dist;
+}
 
 // Material data: 3 channels & index
 //   Index [0, 1) = smoothness; RGB = albedo
 float map(in vec3 p, out vec4 material) {
     float dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
     material = vec4(.77, .15, .16, 0.8);
-    
     // Floor
     float new_dist = p.z;
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.5, .27, .14, 0.4);
     }
-    
+    /*
     // Pillars
     new_dist = min(pillar_map(p - vec3(.7, 2.3, 0.), .12), pillar_map(p - vec3(-2.14, 2.3, 0.), .12));
     if (new_dist < dist) {
@@ -149,6 +173,14 @@ float map(in vec3 p, out vec4 material) {
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(1., 1., 1., 1.);
+    }
+    */
+    // Person
+    new_dist = person_map(p - vec3(0., .5, 1.));
+    if (new_dist < dist) {
+        dist = new_dist;
+        float mult = 3.;
+        material = vec4(1. * mult, .72 * mult, .51 * mult, 2.);
     }
     
     return dist;
@@ -240,34 +272,40 @@ float length_pow(vec3 d, float p) {
     return pow(pow(d.x, p) + pow(d.y, p) + pow(d.z, p), 1. / p);
 }
 
+vec3 window_light_pos = vec3(-1., 1.8, 1.2);
+vec3 light_standard(vec3 p, float coc, vec3 albedo, float roughness, vec3 normal, vec3 ray_dir) {
+    vec3 surface_color = vec3(0.);
+    vec3 light_pos;
+
+    light_pos = window_light_pos;
+    vec3 light_dir = normalize(light_pos - p);
+    vec3 light_intensity;
+    light_intensity = shade_standard(albedo, roughness, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, coc, .1);
+    surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8;
+
+    light_pos = vec3(-3., -.57, 1.6);
+    light_dir = normalize(light_pos - p);
+    light_intensity = shade_standard(albedo, roughness, normal, light_dir, ray_dir);
+    surface_color += light_intensity * vec3(.4, .6, .8) * .1;
+
+    light_pos = vec3(2., -1.17, 1.25);
+    light_dir = normalize(light_pos - p);
+    light_intensity = shade_standard(albedo, roughness, normal, light_dir, ray_dir);
+    surface_color += light_intensity * vec3(1., 0.7, 0.5) * .4;
+    
+    return surface_color;
+}
+
 vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
     vec3 surface_color = vec3(0.);
+    
     if (mat.a < 1.) {
   	 	// Standard shading
 
         float amb_occ = ao(p, normal, coc);
-        vec3 light_pos = vec3(-1.5, sin(iGlobalTime * 1.) * 1.5, 2.);
-
-        light_pos = vec3(-1., 1.8, 1.2);
-        vec3 light_dir = normalize(light_pos - p);
-        vec3 light_intensity;
-        light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, coc, .1);
-        surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8 * amb_occ;
-
-        light_pos = vec3(-3., -.57, 1.6);
-        light_dir = normalize(light_pos - p);
-        light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
-        surface_color += light_intensity * vec3(.4, .6, .8) * .1 * amb_occ;
-
-        light_pos = vec3(2., -1.17, 1.25);
-        light_dir = normalize(light_pos - p);
-        light_intensity = shade_standard(mat.rgb, mat.a, normal, light_dir, ray_dir);
-        surface_color += light_intensity * vec3(1., 0.7, 0.5) * .4 * amb_occ;
-
-        //surface_color += mat.rgb * ao(p, normal, coc) * vec3(0.2, 0.8, 1.) * .1;
-
-        return surface_color;
-    } else {
+        vec3 light_sum = light_standard(p, coc, mat.rgb, mat.a, normal, ray_dir);
+        return light_sum * amb_occ;
+    } else if (mat.a < 2.) {
         // Curtain shading
         vec3 wall_color = vec3(.3, .1, .1) * .3;
         float shade_fac = pow(dot(normal, vec3(0., -1., 0.)), 2.);
@@ -283,19 +321,35 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
         //stripe_color
         surface_color = mix(surface_color, stripe_color, stripe);
         return surface_color;
+    } else {
+        vec3 light_dir = normalize(window_light_pos - p);
+        vec4 mat;
+        float light = 1.;
+        float soft = 0.;
+        for (int i = 0; i < 50; i++) {
+            float dist = map(p, mat);
+            light *= smoothstep(-soft, soft, dist);
+            p    += light_dir * .01;
+            soft += .01;
+        }
+        vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(pow(light, -.2)));
+        
+        surface_color = light_standard(p, coc, mat.rgb, mat.a, normal, ray_dir);
+
+        return mix(surface_color, subsurface_color, 0.3);
     }
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
-    vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 3.);
-    // /*
+    vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 8.);
+     /*
     camera_pos = vec3(.232, .792, 1.10);
     camera_pos = mix(camera_pos, vec3(-.67, .11, 1.12), mouse_normalized.x);
 	// */ 
 
-    vec3 camera_target = vec3(0., 1., 0.);
-    // /*
+    vec3 camera_target = vec3(0., .5, 1.);
+     /*
     camera_target = vec3(-1.82, 1.72, .84);
     camera_target = mix(camera_target, vec3(-.17, 1.31, .70), mouse_normalized.x);
 	// */
@@ -307,7 +361,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec2 uv = normalize_pixel_coords(fragCoord);
     float fov = 80.;
-    // /*
+     /*
     fov = 33.4;
     fov = mix(fov, 47.3, mouse_normalized.x);
 	// */
