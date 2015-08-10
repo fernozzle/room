@@ -111,7 +111,9 @@ float sdCapsule( vec3 p, vec3 a, vec3 b, float r )
     
 float person_map(vec3 p, out vec4 mat) {
     p.xy = -p.xy;
-    p.x = abs(p.x);
+    p.x = abs(p.x); // Symmetrical
+    
+    // Head
     float dist = length(p) - .08;
     dist = smin(dist, distance(p, vec3(.0, .05, -.05)) - .01, .08);
     float jaw_dist = sdCapsule(p, vec3(.05, .01, -.10), vec3(0., .07, -.11), .005);
@@ -120,6 +122,9 @@ float person_map(vec3 p, out vec4 mat) {
     dist = smin(cheek_dist, dist, .05);
     float nose_dist = sdCapsule(p, vec3(.0, .08, -.03), vec3(0., .10, -.06), .002);
     dist = smin(dist, nose_dist, .04);
+    
+    float neck_dist = sdCapsule(p, vec3(.0, -.01, -.06), vec3(.0, -.01, -.20), .04);
+    dist = smin(dist, neck_dist, .02);
     
     float mult = 3.;
     mat = vec4(1. * mult, .72 * mult, .51 * mult, 2.);
