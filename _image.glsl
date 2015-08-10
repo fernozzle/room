@@ -49,13 +49,27 @@ float shelf_map(vec3 p) {
 }
 float couch_map(vec3 p) {
     
-    vec2 center = vec2(clamp(p.x, -.5, 1.), 1.2);
-    center.y += .3 / (pow(p.x - .25, 2.) * 2. + 1.);
+    // Seat
+    vec2 seat_near_center = vec2(clamp(p.x, -.75, .75), -.0);
+    seat_near_center.y += .2 / (pow(p.x, 2.) * 2. + 1.);
     
-    vec2 p_rel = p.xy - center;
+    vec2 p_rel = p.xy - seat_near_center;
     float l = length(p_rel);
-    vec2 center2 = (p_rel / l) * min(l, .42) + center;
-    return distance(p, vec3(center2, min(p.z, .33))) - .02;
+    vec2 seat_edge = seat_near_center + (p_rel / l) * min(l, .42);
+    float seat_distance = distance(p, vec3(seat_edge, min(p.z, .33 - l*l*.3))) - .02;
+    
+    // Back rest
+    vec3 p_transf = p;
+    p_transf.y += pow(p_transf.x, 2.) * .3;
+    p_transf.x *= 1. - .3 * p_transf.y;
+    
+    vec3 back_near_center = vec3(clamp(p_transf.x, -.86, .86), .6 + .2 * p_transf.z, min(p_transf.z, .78));
+    p_rel = p_transf.yz - back_near_center.yz;
+    l = length(p_rel);
+    vec3 back_edge = vec3(back_near_center.x, back_near_center.yz + (p_rel / l) * min(l, .14));
+    float back_distance = distance(p_transf, back_edge) - .03;
+    
+    return min(seat_distance, back_distance);
 }
 
 // Material data: 3 channels & index
@@ -94,7 +108,7 @@ float map(in vec3 p, out vec4 material) {
     }
     
     // Couch
-    new_dist = couch_map(p);
+    new_dist = couch_map(p - vec3(.2, 1.2, 0.));
     if (new_dist < dist) {
         dist = new_dist;
         material = vec4(.76, .52, .33, 0.9);
@@ -126,7 +140,7 @@ float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) 
         float map_dist = map(p + dir * len, mat);
         float coc2 = coc + len * softness;
         brightness *= 1. - coc_kernel(coc2, map_dist);
-        len += map_dist + .5 * coc;
+        len += (map_dist + .5 * coc) * STEP_SCALE;
     }
     return clamp(brightness, 0., 1.);
 }
@@ -202,9 +216,9 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
-    vec3 camera_pos = vec3(0., -2., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 3.);
+    vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 3.);
     
-    vec3 camera_target = vec3(0., 0., 0.);
+    vec3 camera_target = vec3(0., 1., 0.);
     vec3 camera_dir = normalize(camera_target - camera_pos);
     
     vec3 camera_right = normalize(cross(camera_dir, vec3(0., 0., 1.)));
