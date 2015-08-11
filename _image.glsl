@@ -561,20 +561,18 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     time_remapped = mix(tiime, tiime - LOOP_DURATION, step(LOOP_DURATION, tiime));
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
     
-    float camera_switch = mouse_normalized.x * .5 + .5;
-    if (camera_switch < 0.01) { // Mouse not touched
-        // Cuts
-    	camera_switch = mix(camera_switch, 1., step( 2.8, time_remapped));
-    	camera_switch = mix(camera_switch, 0., step( 7.2, time_remapped));
-    	camera_switch = mix(camera_switch, 1., step( 9.7, time_remapped));
-    	camera_switch = mix(camera_switch, 0., step(11.6, time_remapped));
-    	camera_switch = mix(camera_switch, 1., step(13.2, time_remapped));
-    	camera_switch = mix(camera_switch, 0., step(14.5, time_remapped));
-    	camera_switch = mix(camera_switch, 1., step(17.2, time_remapped));
-    	camera_switch = mix(camera_switch, 0., step(18.9, time_remapped));
-    	camera_switch = mix(camera_switch, 1., step(19.4, time_remapped));
-    	camera_switch = mix(camera_switch, 0., step(21.6, time_remapped));
-    }
+    float camera_switch = 0.;
+    camera_switch = mix(camera_switch, 1., step( 2.8, time_remapped));
+    camera_switch = mix(camera_switch, 0., step( 7.2, time_remapped));
+    camera_switch = mix(camera_switch, 1., step( 9.7, time_remapped));
+    camera_switch = mix(camera_switch, 0., step(11.6, time_remapped));
+    camera_switch = mix(camera_switch, 1., step(13.2, time_remapped));
+    camera_switch = mix(camera_switch, 0., step(14.5, time_remapped));
+    camera_switch = mix(camera_switch, 1., step(17.2, time_remapped));
+    camera_switch = mix(camera_switch, 0., step(18.9, time_remapped));
+    camera_switch = mix(camera_switch, 1., step(19.4, time_remapped));
+    camera_switch = mix(camera_switch, 0., step(21.6, time_remapped));
+    camera_switch = mix(camera_switch, mouse_normalized.x * .5 + .5, step(-.95, mouse_normalized.x));
     
     float camera1_transition  = anim_fac(time_remapped, 10.0, 0.1);
     float camera1_transition2 = anim_fac(time_remapped, 20.5, 0.1);
