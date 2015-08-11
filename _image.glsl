@@ -5,6 +5,9 @@
 #define NORMAL_EPSILON .01
 // Compensate for distorted distance fields
 #define STEP_SCALE 0.8
+#define LOOP_DURATION 25.
+
+float time_remapped;
 
 // iq's texture noise
 float noise( in vec3 x )
@@ -221,110 +224,112 @@ float map(in vec3 p, out vec4 material) {
     }
 
     // Johnny
-    float time = iGlobalTime;
     vec4 new_mat = vec4(0.);
     vec3 pos = vec3(-.41, 1.11, 1.24);
     vec3 dir_y = vec3(1., .5, .3);
     
-    float fac = anim_fac(time, 0., .8);
+    float fac = anim_fac(time_remapped, 0., .8);
     pos   = mix(pos,   vec3(-0.41,  1.16,   .86), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.20, -0.20), fac);
     
-    fac = anim_fac(time, .7, .8);
+    fac = anim_fac(time_remapped, .7, .8);
     pos   = mix(pos,   vec3(-0.45,  1.15,  0.87), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.20), fac);
     
-    fac = anim_fac(time, 1.9, .7);
+    fac = anim_fac(time_remapped, 1.9, .7);
     pos   = mix(pos,   vec3(-0.48,  1.16,  0.85), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.30), fac);
     
-    fac = anim_fac(time, 2.8, .5);
+    fac = anim_fac(time_remapped, 2.8, .5);
     pos   = mix(pos,   vec3(-0.48,  1.16,  0.82), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.35, -0.15), fac);
     
-    fac = anim_fac(time, 3.3, .6);
+    fac = anim_fac(time_remapped, 3.3, .6);
     pos   = mix(pos,   vec3(-0.48,  1.16,  0.84), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.37, -0.14), fac);
     
-    fac = anim_fac(time, 4.6, .7);
+    fac = anim_fac(time_remapped, 4.6, .7);
     pos   = mix(pos,   vec3(-0.44,  1.16,  0.86), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.37, -0.20), fac);
     
-    fac = anim_fac(time, 5.2, .8);
+    fac = anim_fac(time_remapped, 5.2, .8);
     pos   = mix(pos,   vec3(-0.46,  1.16,  0.85), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.16), fac);
     
-    fac = anim_fac(time, 5.9, .9);
+    fac = anim_fac(time_remapped, 5.9, .9);
     pos   = mix(pos,   vec3(-0.46,  1.16,  0.86), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.10, -0.18), fac);
     
-    fac = anim_fac(time, 7.0, .6);
+    fac = anim_fac(time_remapped, 7.0, .6);
     pos   = mix(pos,   vec3(-0.48,  1.16,  0.87), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.05), fac);
     
-    fac = anim_fac(time, 7.9, .5);
+    fac = anim_fac(time_remapped, 7.9, .5);
     pos   = mix(pos,   vec3(-0.44,  1.16,  0.85), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.10), fac);
     
-    fac = anim_fac(time, 8.5, .6);
+    fac = anim_fac(time_remapped, 8.5, .6);
     pos   = mix(pos,   vec3(-0.44,  1.16,  0.86), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.35, -0.08), fac);
     
-    fac = anim_fac(time, 9.0, 2.2);
+    fac = anim_fac(time_remapped, 9.0, 2.2);
     pos   = mix(pos,   vec3(-0.44,  1.15,  0.86), fac);
     dir_y = mix(dir_y, vec3( 1.00,  0.25, -0.06), fac);
     
     // You're lying; cut at 11.6
     
-    fac = anim_fac(time, 11.5, 1.2);
+    fac = anim_fac(time_remapped, 11.5, 1.2);
     pos   = mix(pos,   vec3(-0.65, 0.66,  1.55), fac);
     dir_y = mix(dir_y, vec3( 1.00, 0.5, -0.02), fac);
     
-    fac = anim_fac(time, 11.9, 1.2);
+    fac = anim_fac(time_remapped, 11.9, 1.2);
     pos   = mix(pos,   vec3(-0.66, 0.43, 1.55), fac);
     dir_y = mix(dir_y, vec3( 1.00, 1.7,  0.03), fac);
     
-    fac = anim_fac(time, 13.3, .5);
+    fac = anim_fac(time_remapped, 13.3, .5);
     pos   = mix(pos,   vec3(-0.63, 0.46, 1.54), fac);
     dir_y = mix(dir_y, vec3( 1.00, 1.7,  -0.04), fac);
     
     // YOU'RE TEARING ME APART LISA
     
-    fac = anim_fac(time, 14.4, .5);
+    fac = anim_fac(time_remapped, 14.4, .5);
     pos   = mix(pos,   vec3(-0.69, 0.47, 1.52), fac);
     dir_y = mix(dir_y, vec3( 1.00, .6,  0.50), fac);
     
-    fac = anim_fac(time, 15.0, .8);
+    fac = anim_fac(time_remapped, 15.0, .8);
     pos   = mix(pos,   vec3(-0.69, 0.47, 1.56), fac);
     dir_y = mix(dir_y, vec3( 1.00, .5,  0.4), fac);
     
-    fac = anim_fac(time, 15.7, .4);
+    fac = anim_fac(time_remapped, 15.7, .4);
     pos   = mix(pos,   vec3(-0.69, 0.47, 1.46), fac);
     dir_y = mix(dir_y, vec3( 1.00, 1.2,  0.3), fac);
     
-    fac = anim_fac(time, 16.2, .7);
+    fac = anim_fac(time_remapped, 16.2, .7);
     pos   = mix(pos,   vec3(-0.70, 0.49, 1.54), fac);
     dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.02), fac);
     
     // Do you understand life?
     
-    fac = anim_fac(time, 18.8, 1.1);
+    fac = anim_fac(time_remapped, 18.8, 1.1);
     pos   = mix(pos,   vec3(-0.55, 0.70, 1.52), fac);
     dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.10), fac);
     
-    fac = anim_fac(time, 19.8, 1.2);
+    fac = anim_fac(time_remapped, 19.8, 1.2);
     pos   = mix(pos,   vec3(-0.50, 0.60, 1.28), fac);
     dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.10), fac);
     
-    fac = anim_fac(time, 20.4, 1.);
+    fac = anim_fac(time_remapped, 20.4, 1.);
     pos   = mix(pos,   vec3(-0.50, 1., 1.0), fac);
     dir_y = mix(dir_y, vec3( 1.00, .2,  -.05), fac);
     
     // Do you?
     
-    fac = anim_fac(time, 21.5, .8);
+    fac = anim_fac(time_remapped, 21.5, .8);
     pos   = mix(pos,   vec3(-0.45, 1., 1.0), fac);
     dir_y = mix(dir_y, vec3( 1.00, .2,  -.1), fac);
+    
+    fac = anim_fac(time_remapped, 30., 1.);
+    dir_y = mix(dir_y, vec3( 1.00, -.3, -.1), fac);
     
     new_dist = person_map(get_pos(p - pos, normalize(dir_y)), 0., new_mat);
     if (new_dist < dist) {
@@ -473,27 +478,28 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, vec4 mat) {
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float time = iGlobalTime;
+    time_remapped = mix(time, time - LOOP_DURATION, step(LOOP_DURATION, time));
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
     
     float camera_switch = mouse_normalized.x * .5 + .5;
     if (camera_switch < 0.01) { // Mouse not touched
         // Cuts
-    	camera_switch = mix(camera_switch, 1., step( 2.8, time));
-    	camera_switch = mix(camera_switch, 0., step( 7.2, time));
-    	camera_switch = mix(camera_switch, 1., step( 9.7, time));
-    	camera_switch = mix(camera_switch, 0., step(11.6, time));
-    	camera_switch = mix(camera_switch, 1., step(13.2, time));
-    	camera_switch = mix(camera_switch, 0., step(14.5, time));
-    	camera_switch = mix(camera_switch, 1., step(17.2, time));
-    	camera_switch = mix(camera_switch, 0., step(18.9, time));
-    	camera_switch = mix(camera_switch, 1., step(19.4, time));
-    	camera_switch = mix(camera_switch, 0., step(21.6, time));
+    	camera_switch = mix(camera_switch, 1., step( 2.8, time_remapped));
+    	camera_switch = mix(camera_switch, 0., step( 7.2, time_remapped));
+    	camera_switch = mix(camera_switch, 1., step( 9.7, time_remapped));
+    	camera_switch = mix(camera_switch, 0., step(11.6, time_remapped));
+    	camera_switch = mix(camera_switch, 1., step(13.2, time_remapped));
+    	camera_switch = mix(camera_switch, 0., step(14.5, time_remapped));
+    	camera_switch = mix(camera_switch, 1., step(17.2, time_remapped));
+    	camera_switch = mix(camera_switch, 0., step(18.9, time_remapped));
+    	camera_switch = mix(camera_switch, 1., step(19.4, time_remapped));
+    	camera_switch = mix(camera_switch, 0., step(21.6, time_remapped));
     }
     
-    float camera1_transition  = anim_fac(time, 10.0, 0.1);
-    float camera1_transition2 = anim_fac(time, 20.5, 0.1);
-    float camera2_transition  = anim_fac(time, 12.5, 0.1);
-    float camera2_transition2 = anim_fac(time, 19.4, 1.0);
+    float camera1_transition  = anim_fac(time_remapped, 10.0, 0.1);
+    float camera1_transition2 = anim_fac(time_remapped, 20.5, 0.1);
+    float camera2_transition  = anim_fac(time_remapped, 12.5, 0.1);
+    float camera2_transition2 = anim_fac(time_remapped, 19.4, 1.0);
     
     vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 8.);
     vec3 camera1_pos = mix(vec3(.832, .892, 0.90), vec3(.23, .79, 1.32), camera1_transition);
@@ -546,6 +552,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     col *= 1. - length_pow(vec3(uv, 0.), 4.) * .7;
     
     col *= 1.8;
+    
+    col *= smoothstep(0., 2., abs(iGlobalTime - LOOP_DURATION));
+    col *= .7 * smoothstep(LOOP_DURATION * 2., LOOP_DURATION * 2. - 2., iGlobalTime) + .3;
 
     col.rgb = max(col.rgb, vec3(.015));
     col.rgb = pow(col.rgb, vec3(.95, 1.07, 1.05));

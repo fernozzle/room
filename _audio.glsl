@@ -1,3 +1,4 @@
+#define LOOP_DURATION 25.
 #define PITCH_SMOOTHING
 
 #define TAU 6.283185
@@ -5,7 +6,6 @@
 #define FORMANT_STEP .02
 #define PHASE_STEP .04
 
-#define F(amp, f1, f2, f3) { if (time > fcursor) {formants_old = formants; formants = vec4(f1, f2, f3, amp); } fcursor += FORMANT_STEP; }
 #define FP(ftime,amp,f1,f2,f3){ if(ftimes.y<time){ ftimes=vec2(ftimes.y,ftime); fprev=fnext; fnext=vec4(f1,f2,f3,amp); } }
 
 // After all the `PP`s are executed, `time` should be between `ptimes.y` and `ptimes.z`:
@@ -68,6 +68,7 @@ float hash22mono(float p) {
 
 vec2 mainSound(float time)
 {
+    time = mix(time, time - LOOP_DURATION, step(LOOP_DURATION, time));
 
     vec2 ftimes = vec2(0.);
     // vec4: F1, F2, F3, amplitude
