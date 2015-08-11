@@ -149,7 +149,7 @@ float person_map(vec3 p, float lisaness, out vec4 mat) {
     float body_dist = distance(p, body_near) - .005;
     body_dist = smin(body_dist, sdCapsule(p, vec3(.0, .0, -.15), vec3(.2, .0, -.3), .04), .02);
     
-    vec4 body_mat = mix(vec4(.30, .25, .21, .9), vec4(2., .5, .7, 1.9), lisaness);
+    vec4 body_mat = mix(vec4(.30, .25, .21, 2.9), vec4(2., .5, .6, 2.9), lisaness);
     mat = mix(mat, body_mat, step(body_dist, dist));
     dist = min(dist, body_dist);
     
@@ -208,7 +208,7 @@ float map(in vec3 p, out vec4 mat) {
 
     // Curtains
     new_dist = curtain_map(p - vec3(-.8, 2.3, 1.5));
-    mat = mix(mat, vec4(1., 1., 1., 2.), step(new_dist, dist));
+    mat = mix(mat, vec4(1., 1., 1., 3.), step(new_dist, dist));
     dist = min(dist, new_dist);
 
     // Johnny
@@ -277,33 +277,30 @@ vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, v
     
     float nl = dot(normal, light_dir);
     float nv = dot(normal, -ray_dir);
-    if (nl > 0. && nv > 0.)
-    {
-        vec3 haf = normalize(light_dir - ray_dir);
-        float nh = dot(normal, haf); 
-        float vh = dot(-ray_dir, haf);
-        
-        vec3 diffuse = albedo*nl;
-        
-        // Cook-Torrance
-        float a = roughness * roughness;
-        float a2 = a * a;
-        float dn = nh * nh * (a2 - 1.) + 1.;
-        float D = a2 / (PI * dn * dn);
-        
-        float k = pow(roughness + 1., 2.0) / 8.;
-        float nvc = max(nv, 0.);
-        float g1v = nvc / (nvc * (1. - k) + k);
-        float g1l = nl  / (nl  * (1. - k) + k);
-        float G = g1l * g1v;
+    
+    vec3 haf = normalize(light_dir - ray_dir);
+    float nh = dot(normal, haf); 
+    float vh = dot(-ray_dir, haf);
 
-        float F = F0 + (1. - F0) * exp2((-5.55473 * vh - 6.98316) * vh);
-        
-        float specular = (D * F * G) / (4. /* * nl */ * nv);
-    	
-        return mix(vec3(specular), diffuse, diffuse_specular_mix);
-    }
-    return vec3(0.);
+    vec3 diffuse = albedo*nl;
+
+    // Cook-Torrance
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float dn = nh * nh * (a2 - 1.) + 1.;
+    float D = a2 / (PI * dn * dn);
+
+    float k = pow(roughness + 1., 2.0) / 8.;
+    float nvc = max(nv, 0.);
+    float g1v = nvc / (nvc * (1. - k) + k);
+    float g1l = nl  / (nl  * (1. - k) + k);
+    float G = g1l * g1v;
+
+    float F = F0 + (1. - F0) * exp2((-5.55473 * vh - 6.98316) * vh);
+
+    float specular = (D * F * G) / (4. /* * nl */ * nv);
+
+    return mix(vec3(specular), diffuse, diffuse_specular_mix) * step(0., nl);
 }
 
 float length_pow(vec3 d, float p) {
@@ -364,7 +361,9 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, vec4 mat) {
     stripe_color = mix(stripe_color, wall_color, .5 * pow(1. - shade_fac, 5.));
     curtain_color = mix(curtain_color, stripe_color, stripe);
 
-    return mix(mix(surface_color, subsurface_color, .3 * step(1., mat.a)), curtain_color, step(2., mat.a));
+    vec3 result = mix(surface_color, subsurface_color, .3 * step(1., mat.a));
+    result = mix(result, mix(surface_color, subsurface_color, .05), step(2., mat.a));
+    return mix(result, curtain_color, step(3., mat.a));
 }
 
 void animate() {
@@ -472,6 +471,10 @@ void animate() {
     fac = anim_fac(time_remapped, 21.5, .8);
     johnny_pos = mix(johnny_pos, vec3(-0.45, 1., 1.0), fac);
     johnny_dir = mix(johnny_dir, vec3( 1.00, .2,  -.1), fac);
+    
+    fac = anim_fac(time_remapped, 22.3, 1.);
+    johnny_pos = mix(johnny_pos, vec3(-0.45, .995, 1.0), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .15,  -.08), fac);
     
     fac = anim_fac(time_remapped, 30., 1.);
     johnny_dir = mix(johnny_dir, vec3( 1.00, -.3, -.1), fac);
