@@ -1,5 +1,5 @@
 #define ENABLE_JOHNNY
-//#define ENABLE_LISA
+#define ENABLE_LISA
 
 #define PI     3.141592
 #define TWO_PI 6.283185
@@ -13,6 +13,9 @@
 #define LOOP_DURATION 25.
 
 float time_remapped;
+
+vec3 johnny_pos = vec3(0.), johnny_dir = vec3(1.);
+vec3   lisa_pos = vec3(0.),   lisa_dir = vec3(1.);
 
 // iq's texture noise
 float noise( in vec3 x )
@@ -122,7 +125,7 @@ float person_map(vec3 p, float lisaness, out vec4 mat) {
     // Head
     float dist = distance(p, vec3(.0, .01, .0)) - .08;
     dist = smin(dist, distance(p, vec3(.0, .06, -.05)) - .01, .08);
-    float jaw_dist = sdCapsule(p, vec3(.05, .02, -.10), vec3(0., .08, -.11), .005);
+    float jaw_dist = sdCapsule(p, vec3(.04, .02, -.10), vec3(0., .08, -.11), .005);
     dist = smin(dist, jaw_dist, .1);
     float cheek_dist = distance(p, vec3(.04, .04, -.04)) - .01;
     dist = smin(cheek_dist, dist, .05);
@@ -142,15 +145,15 @@ float person_map(vec3 p, float lisaness, out vec4 mat) {
     float body_top = -.14;
     float body_radius = (p.z - body_top) * -.15 + .045;
     float l = length(p.xy);
-    vec3 body_near = vec3(p.xy / l * min(l, body_radius), clamp(p.z, -.5, body_top));
+    vec3 body_near = vec3(p.xy / l * min(l, body_radius), clamp(p.z, -.45, body_top));
     float body_dist = distance(p, body_near) - .005;
     body_dist = smin(body_dist, sdCapsule(p, vec3(.0, .0, -.15), vec3(.2, .0, -.3), .04), .02);
     
-    vec4 body_mat = mix(vec4(.30, .25, .21, .9), vec4(3., 1.5, 1.3, .9), lisaness);
+    vec4 body_mat = mix(vec4(.30, .25, .21, .9), vec4(2., .5, .7, 1.9), lisaness);
     mat = mix(mat, body_mat, step(body_dist, dist));
     dist = min(dist, body_dist);
     
-    float stick_dist = sdCapsule(p, vec3(0., 0., -.4), vec3(0., 0., -10.), .02);
+    float stick_dist = distance(p, vec3(0., 0., min(p.z, -.4))) - .02;
     mat = mix(mat, vec4(.9, .52, .3, .6), step(stick_dist, dist));
     dist = min(dist, stick_dist);
 
@@ -180,27 +183,27 @@ float map(in vec3 p, out vec4 mat) {
     
     // Pillars
     new_dist = min(pillar_map(p - vec3(.7, 2.3, 0.), .12), pillar_map(p - vec3(-2.14, 2.3, 0.), .12));
-    mat = mix(mat, vec4(.95, .94, .91, 0.5), step(new_dist, dist));
+    mat = mix(mat, vec4(1.1, 1., .85, 0.5), step(new_dist, dist));
     dist = min(dist, new_dist);
 
     // Shelf
     new_dist = shelf_map(p - vec3(-3.3, 2.3, 0.));
-    mat = mix(mat, vec4(.9, .52, .3, 0.8), step(new_dist, dist));
+    mat = mix(mat, vec4(0.2, 0.2, 0.2, 1.8), step(new_dist, dist));
     dist = min(dist, new_dist);
     
     // Door
-    new_dist = box_map(p - vec3(-3.3, 1.3, 1.09), vec3(0.1, .98, 2.16), .01);
-    mat = mix(mat, vec4(.8, .8, .8, 0.5), step(new_dist, dist));
+    new_dist = box_map(p - vec3(-3.3, 1.3, 1.09), vec3(.05, .98, 2.16), .01);
+    mat = mix(mat, vec4(.9, .8, .65, 0.5), step(new_dist, dist));
     dist = min(dist, new_dist);
     
     // Painting
-    new_dist = box_map(p - vec3(-3.3, -.4, 1.5), vec3(.1, .8, .97), .01);
-    mat = mix(mat, vec4(.9, .9, .9, 0.8), step(new_dist, dist));
+    new_dist = box_map(p - vec3(-3.3, -.4, 1.5), vec3(.05, .8, .97), .01);
+    mat = mix(mat, vec4(.9, .8, .65, 0.8), step(new_dist, dist));
     dist = min(dist, new_dist);
     
     // Couch
     new_dist = couch_map(p - vec3(.3, 1.0, 0.));
-    mat = mix(mat, vec4(.76, .52, .33, 0.9), step(new_dist, dist));
+    mat = mix(mat, vec4(.76, .52, .33, .9), step(new_dist, dist));
     dist = min(dist, new_dist);
 
     // Curtains
@@ -210,138 +213,17 @@ float map(in vec3 p, out vec4 mat) {
 
     // Johnny
     #ifdef ENABLE_JOHNNY
-    vec3 pos = vec3(-.41, 1.11, 1.24);
-    vec3 dir_y = vec3(1., .5, .3);
-    
-    float fac = anim_fac(time_remapped, 0., .8);
-    pos   = mix(pos,   vec3(-0.41,  1.16,   .86), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.20, -0.20), fac);
-    
-    fac = anim_fac(time_remapped, .7, .8);
-    pos   = mix(pos,   vec3(-0.45,  1.15,  0.87), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.20), fac);
-    
-    fac = anim_fac(time_remapped, 1.9, .7);
-    pos   = mix(pos,   vec3(-0.48,  1.16,  0.85), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.30), fac);
-    
-    fac = anim_fac(time_remapped, 2.8, .5);
-    pos   = mix(pos,   vec3(-0.48,  1.16,  0.82), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.35, -0.15), fac);
-    
-    fac = anim_fac(time_remapped, 3.3, .6);
-    pos   = mix(pos,   vec3(-0.48,  1.16,  0.84), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.37, -0.14), fac);
-    
-    fac = anim_fac(time_remapped, 4.6, .7);
-    pos   = mix(pos,   vec3(-0.44,  1.16,  0.86), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.37, -0.20), fac);
-    
-    fac = anim_fac(time_remapped, 5.2, .8);
-    pos   = mix(pos,   vec3(-0.46,  1.16,  0.85), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.16), fac);
-    
-    fac = anim_fac(time_remapped, 5.9, .9);
-    pos   = mix(pos,   vec3(-0.46,  1.16,  0.86), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.10, -0.18), fac);
-    
-    fac = anim_fac(time_remapped, 7.0, .6);
-    pos   = mix(pos,   vec3(-0.48,  1.16,  0.87), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.05), fac);
-    
-    fac = anim_fac(time_remapped, 7.9, .5);
-    pos   = mix(pos,   vec3(-0.44,  1.16,  0.85), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.30, -0.10), fac);
-    
-    fac = anim_fac(time_remapped, 8.5, .6);
-    pos   = mix(pos,   vec3(-0.44,  1.16,  0.86), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.35, -0.08), fac);
-    
-    fac = anim_fac(time_remapped, 9.0, 2.2);
-    pos   = mix(pos,   vec3(-0.44,  1.15,  0.86), fac);
-    dir_y = mix(dir_y, vec3( 1.00,  0.25, -0.06), fac);
-    
-    // You're lying; cut at 11.6
-    
-    fac = anim_fac(time_remapped, 11.5, 1.2);
-    pos   = mix(pos,   vec3(-0.65, 0.66,  1.55), fac);
-    dir_y = mix(dir_y, vec3( 1.00, 0.5, -0.02), fac);
-    
-    fac = anim_fac(time_remapped, 11.9, 1.2);
-    pos   = mix(pos,   vec3(-0.66, 0.43, 1.55), fac);
-    dir_y = mix(dir_y, vec3( 1.00, 1.7,  0.03), fac);
-    
-    fac = anim_fac(time_remapped, 13.3, .5);
-    pos   = mix(pos,   vec3(-0.63, 0.46, 1.54), fac);
-    dir_y = mix(dir_y, vec3( 1.00, 1.7,  -0.04), fac);
-    
-    // YOU'RE TEARING ME APART LISA
-    
-    fac = anim_fac(time_remapped, 14.4, .5);
-    pos   = mix(pos,   vec3(-0.69, 0.47, 1.52), fac);
-    dir_y = mix(dir_y, vec3( 1.00, .6,  0.50), fac);
-    
-    fac = anim_fac(time_remapped, 15.0, .8);
-    pos   = mix(pos,   vec3(-0.69, 0.47, 1.56), fac);
-    dir_y = mix(dir_y, vec3( 1.00, .5,  0.4), fac);
-    
-    fac = anim_fac(time_remapped, 15.7, .4);
-    pos   = mix(pos,   vec3(-0.69, 0.47, 1.46), fac);
-    dir_y = mix(dir_y, vec3( 1.00, 1.2,  0.3), fac);
-    
-    fac = anim_fac(time_remapped, 16.2, .7);
-    pos   = mix(pos,   vec3(-0.70, 0.49, 1.54), fac);
-    dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.02), fac);
-    
-    // Do you understand life?
-    
-    fac = anim_fac(time_remapped, 18.8, 1.1);
-    pos   = mix(pos,   vec3(-0.55, 0.70, 1.52), fac);
-    dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.10), fac);
-    
-    fac = anim_fac(time_remapped, 19.8, 1.2);
-    pos   = mix(pos,   vec3(-0.50, 0.60, 1.28), fac);
-    dir_y = mix(dir_y, vec3( 1.00, 1.3,  -.10), fac);
-    
-    fac = anim_fac(time_remapped, 20.4, 1.);
-    pos   = mix(pos,   vec3(-0.50, 1., 1.0), fac);
-    dir_y = mix(dir_y, vec3( 1.00, .2,  -.05), fac);
-    
-    // Do you?
-    
-    fac = anim_fac(time_remapped, 21.5, .8);
-    pos   = mix(pos,   vec3(-0.45, 1., 1.0), fac);
-    dir_y = mix(dir_y, vec3( 1.00, .2,  -.1), fac);
-    
-    fac = anim_fac(time_remapped, 30., 1.);
-    dir_y = mix(dir_y, vec3( 1.00, -.3, -.1), fac);
-    
     vec4 new_mat = vec4(0.);
-    new_dist = person_map(get_pos(p - pos, normalize(dir_y)), 0., new_mat);
+    new_dist = person_map(get_pos(p - johnny_pos, normalize(johnny_dir)), 0., new_mat);
     mat = mix(mat, new_mat, step(new_dist, dist));
     dist = min(dist, new_dist);
-    
     #endif
     
     // Lisa
     #ifdef ENABLE_LISA
-    
-    pos = vec3(.08, 1.3, .8);
-    dir_y = vec3(-.8, -1., .3);
-    
-    fac = anim_fac(time_remapped, 3.2, .8);
-    pos   = mix(pos,   vec3(.085, 1.27, .8), fac);
-    dir_y = mix(dir_y, vec3(-.7, -1., .2), fac);
-    
-    fac = anim_fac(time_remapped, 5., .7);
-    pos   = mix(pos,   vec3(.082, 1.27, .8), fac);
-    dir_y = mix(dir_y, vec3(-.7, -1., .15), fac);
-    
-    
-    new_dist = person_map(get_pos(p - pos, normalize(dir_y)), 1., new_mat);
+    new_dist = person_map(get_pos(p - lisa_pos, normalize(lisa_dir)), 1., new_mat);
     mat = mix(mat, new_mat, step(new_dist, dist));
     dist = min(dist, new_dist);
-    
     #endif
     
     return dist;
@@ -429,14 +311,15 @@ float length_pow(vec3 d, float p) {
 }
 
 vec3 window_light_pos = vec3(-1., 1.8, 1.2);
-vec3 light_standard(vec3 p, vec3 albedo, float roughness, vec3 normal, vec3 ray_dir) {
+vec3 light_standard(vec3 p, vec3 albedo, float roughness, vec3 normal, vec3 ray_dir, out float shadow) {
     vec3 surface_color = vec3(0.);
     vec3 light_pos;
 
     light_pos = window_light_pos;
     vec3 light_dir = normalize(light_pos - p);
     vec3 light_intensity;
-    light_intensity = shade_standard(albedo, roughness, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, .1);
+    shadow = soft_shadow(p, light_dir, .1, .1);
+    light_intensity = shade_standard(albedo, roughness, normal, light_dir, ray_dir) * shadow;
     surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8;
 
     light_pos = vec3(-3., -.57, 1.6);
@@ -455,16 +338,17 @@ vec3 light_standard(vec3 p, vec3 albedo, float roughness, vec3 normal, vec3 ray_
 // Now branchless!
 vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, vec4 mat) {
     
+    // Standard shading
+    float shadow = 1.;
+    vec3 surface_color = light_standard(p, mat.rgb, fract(mat.a), normal, ray_dir, shadow);
+    surface_color *= ao(p, normal);
+    
     // Subsurface scattering
     vec3 light_dir = normalize(window_light_pos - p);
     float soft = .04;
     vec4 temp_mat;
     float light = smoothstep(-soft, soft, map(p + light_dir * soft, temp_mat));
     vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(1. / light));
-    
-    // Standard shading
-    vec3 surface_color = light_standard(p, mat.rgb, fract(mat.a), normal, ray_dir);
-    surface_color *= ao(p, normal);
     
     // Curtain (i.e. outrageously fake) shading
     vec3 wall_color = vec3(.3, .1, .1) * .3;
@@ -475,7 +359,7 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, vec4 mat) {
     vec3 transmission_color = pow(vec3(.3, .25, .2), vec3(windowness)) * 2.;
     vec3 curtain_color = mix(wall_color, transmission_color, shade_fac);
 
-    float stripe = smoothstep(-.1, .1, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
+    float stripe = smoothstep(-.2, .2, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
     vec3 stripe_color = vec3(.08, .05, .06) * shade_fac;
     stripe_color = mix(stripe_color, wall_color, .5 * pow(1. - shade_fac, 5.));
     curtain_color = mix(curtain_color, stripe_color, stripe);
@@ -483,9 +367,195 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, vec4 mat) {
     return mix(mix(surface_color, subsurface_color, .3 * step(1., mat.a)), curtain_color, step(2., mat.a));
 }
 
+void animate() {
+    // JOHNNY
+    
+    johnny_pos = vec3(-.41, 1.11, 1.24);
+    johnny_dir = vec3(1., .5, .3);
+    
+    float fac = anim_fac(time_remapped, 0., .8);
+    johnny_pos = mix(johnny_pos, vec3(-0.41,  1.16,   .86), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.20, -0.20), fac);
+    
+    fac = anim_fac(time_remapped, .7, .8);
+    johnny_pos = mix(johnny_pos, vec3(-0.45,  1.15,  0.87), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.30, -0.20), fac);
+    
+    fac = anim_fac(time_remapped, 1.9, .7);
+    johnny_pos = mix(johnny_pos, vec3(-0.48,  1.16,  0.85), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.30, -0.30), fac);
+    
+    fac = anim_fac(time_remapped, 2.8, .5);
+    johnny_pos = mix(johnny_pos, vec3(-0.48,  1.16,  0.82), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.35, -0.15), fac);
+    
+    fac = anim_fac(time_remapped, 3.3, .6);
+    johnny_pos = mix(johnny_pos, vec3(-0.48,  1.16,  0.84), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.37, -0.14), fac);
+    
+    fac = anim_fac(time_remapped, 4.6, .7);
+    johnny_pos = mix(johnny_pos, vec3(-0.44,  1.16,  0.86), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.37, -0.20), fac);
+    
+    fac = anim_fac(time_remapped, 5.2, .8);
+    johnny_pos = mix(johnny_pos, vec3(-0.46,  1.16,  0.85), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.30, -0.16), fac);
+    
+    fac = anim_fac(time_remapped, 5.9, .9);
+    johnny_pos = mix(johnny_pos, vec3(-0.46,  1.16,  0.86), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.10, -0.18), fac);
+    
+    fac = anim_fac(time_remapped, 7.0, .6);
+    johnny_pos = mix(johnny_pos, vec3(-0.48,  1.16,  0.87), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.30, -0.05), fac);
+    
+    fac = anim_fac(time_remapped, 7.9, .5);
+    johnny_pos = mix(johnny_pos, vec3(-0.44,  1.16,  0.85), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.30, -0.10), fac);
+    
+    fac = anim_fac(time_remapped, 8.5, .6);
+    johnny_pos = mix(johnny_pos, vec3(-0.44,  1.16,  0.86), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.35, -0.08), fac);
+    
+    fac = anim_fac(time_remapped, 9.0, 2.2);
+    johnny_pos = mix(johnny_pos, vec3(-0.44,  1.15,  0.86), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00,  0.25, -0.06), fac);
+    
+    // You're lying; cut at 11.6
+    
+    fac = anim_fac(time_remapped, 11.5, 1.2);
+    johnny_pos = mix(johnny_pos, vec3(-0.65, 0.66,  1.55), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 0.5, -0.02), fac);
+    
+    fac = anim_fac(time_remapped, 11.9, 1.2);
+    johnny_pos = mix(johnny_pos, vec3(-0.66, 0.43, 1.55), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.7,  0.03), fac);
+    
+    fac = anim_fac(time_remapped, 13.3, .5);
+    johnny_pos = mix(johnny_pos, vec3(-0.63, 0.46, 1.54), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.7,  -0.04), fac);
+    
+    // YOU'RE TEARING ME APART LISA
+    
+    fac = anim_fac(time_remapped, 14.4, .5);
+    johnny_pos = mix(johnny_pos, vec3(-0.69, 0.47, 1.52), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .6,  0.50), fac);
+    
+    fac = anim_fac(time_remapped, 15.0, .8);
+    johnny_pos = mix(johnny_pos, vec3(-0.69, 0.47, 1.56), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .5,  0.4), fac);
+    
+    fac = anim_fac(time_remapped, 15.7, .4);
+    johnny_pos = mix(johnny_pos, vec3(-0.69, 0.47, 1.46), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.2,  0.3), fac);
+    
+    fac = anim_fac(time_remapped, 16.2, .7);
+    johnny_pos = mix(johnny_pos, vec3(-0.70, 0.49, 1.54), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.3,  -.02), fac);
+    
+    // Do you understand life?
+    
+    fac = anim_fac(time_remapped, 18.8, 1.1);
+    johnny_pos = mix(johnny_pos, vec3(-0.55, 0.70, 1.52), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.3,  -.10), fac);
+    
+    fac = anim_fac(time_remapped, 19.8, 1.2);
+    johnny_pos = mix(johnny_pos, vec3(-0.50, 0.60, 1.28), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.3,  -.10), fac);
+    
+    fac = anim_fac(time_remapped, 20.4, 1.);
+    johnny_pos = mix(johnny_pos, vec3(-0.50, 1., 1.0), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .2,  -.05), fac);
+    
+    // Do you?
+    
+    fac = anim_fac(time_remapped, 21.5, .8);
+    johnny_pos = mix(johnny_pos, vec3(-0.45, 1., 1.0), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .2,  -.1), fac);
+    
+    fac = anim_fac(time_remapped, 30., 1.);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, -.3, -.1), fac);
+    
+    // LISA
+    
+    lisa_pos = vec3(.082, 1.37, .8);
+    lisa_dir = vec3(-.9, -1., .5);
+    
+    fac = anim_fac(time_remapped, 3.2, .8);
+    lisa_pos = mix(lisa_pos, vec3(.082, 1.37, .8), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.7, -1., .5), fac);
+    
+    fac = anim_fac(time_remapped, 5., .9);
+    lisa_pos = mix(lisa_pos, vec3(.082, 1.35, .8), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.9, -1., .45), fac);
+    
+    fac = anim_fac(time_remapped, 6.4, .9);
+    lisa_pos = mix(lisa_pos, vec3(.082, 1.33, .8), fac);
+    lisa_dir = mix(lisa_dir, vec3(-1., -1., .45), fac);
+    
+    fac = anim_fac(time_remapped, 8.8, .9);
+    lisa_pos = mix(lisa_pos, vec3(.082, 1.35, .8), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., .5), fac);
+    
+    fac = anim_fac(time_remapped, 9.7, .6);
+    lisa_pos = mix(lisa_pos, vec3(.082, 1.30, .83), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.4, -1., .35), fac);
+    
+    fac = anim_fac(time_remapped, 10.1, 1.1);
+    lisa_pos = mix(lisa_pos, vec3(.082, 1.20, .75), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.3, -1., .10), fac);
+    
+    fac = anim_fac(time_remapped, 10.7, 1.0);
+    lisa_pos = mix(lisa_pos, vec3(.08, .90, 1.00), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.7, -1., .10), fac);
+    
+    // Get up
+    
+    fac = anim_fac(time_remapped, 11.8, 1.2);
+    lisa_pos = mix(lisa_pos, vec3(-.49, .83, 1.54), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., .05), fac);
+    
+    fac = anim_fac(time_remapped, 12.8, 1.5);
+    lisa_pos = mix(lisa_pos, vec3(-.50, .82, 1.52), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., .05), fac);
+    
+    fac = anim_fac(time_remapped, 15.3, .7);
+    lisa_pos = mix(lisa_pos, vec3(-.53, .82, 1.52), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.5, -1., .04), fac);
+    
+    fac = anim_fac(time_remapped, 16.0, 1.2);
+    lisa_pos = mix(lisa_pos, vec3(-.54, .83, 1.52), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., .04), fac);
+    
+    // Why are you so hysterical?
+    
+    fac = anim_fac(time_remapped, 17.2, .5);
+    lisa_pos = mix(lisa_pos, vec3(-.53, .85, 1.52), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.3, -1., .12), fac);
+    
+    fac = anim_fac(time_remapped, 18.0, .4);
+    lisa_pos = mix(lisa_pos, vec3(-.53, .85, 1.51), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.4, -1., .15), fac);
+    
+    fac = anim_fac(time_remapped, 18.3, .7);
+    lisa_pos = mix(lisa_pos, vec3(-.53, .85, 1.52), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., .12), fac);
+    
+    // Pushed
+    
+    fac = anim_fac(time_remapped, 19.3, 1.);
+    lisa_pos = mix(lisa_pos, vec3(.34, 1.39, .75), pow(vec3(fac), vec3(1., 1., 2.)));
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., 1.7), fac);
+    
+    fac = anim_fac(time_remapped, 20.3, .7);
+    lisa_pos = mix(lisa_pos, vec3(.34, 1.39, .80), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., 1.5), fac);
+}
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    float time = iGlobalTime;
-    time_remapped = mix(time, time - LOOP_DURATION, step(LOOP_DURATION, time));
+    float tiime = iGlobalTime;
+    tiime = mix(tiime - 7., tiime, step(401., iResolution.x));
+    time_remapped = mix(tiime, tiime - LOOP_DURATION, step(LOOP_DURATION, tiime));
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
     
     float camera_switch = mouse_normalized.x * .5 + .5;
@@ -511,13 +581,13 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 camera_pos = vec3(0., 0., 4.) + vec3(mouse_normalized.x * 2., 0., mouse_normalized.y * 8.);
     vec3 camera1_pos = mix(vec3(.832, .892, 0.90), vec3(.23, .79, 1.32), camera1_transition);
     camera1_pos = mix(camera1_pos, vec3(.6, .7, 0.90), camera1_transition2);
-    vec3 camera2_pos = mix(vec3(-.67, .11, 1.12), vec3(-.80, .00, 1.50), camera2_transition);
+    vec3 camera2_pos = mix(vec3(-.67, .11, 1.12), vec3(-.22, .00, 1.45), camera2_transition);
     camera_pos = mix(camera1_pos, camera2_pos, camera_switch);
 
     vec3 camera_target = vec3(0., .5, 1.);
     vec3 camera1_target = mix(vec3(-1.62, 1.82, .64), vec3(-1.01, 0.47, 1.57), camera1_transition);
     camera1_target = mix(camera1_target, vec3(-0.55, 1.1, .95), camera1_transition2);
-    vec3 camera2_target = mix(vec3(-0.17, 1.31, .70), vec3(-0.09, 1.06, 1.44), camera2_transition);
+    vec3 camera2_target = mix(vec3(-0.17, 1.31, .70), vec3(-0.8, 1.06, 1.5), camera2_transition);
     camera2_target = mix(camera2_target, vec3(-0.17, 1.21, .70), camera2_transition2);
     camera_target = mix(camera1_target, camera2_target, camera_switch);
     
@@ -535,9 +605,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec3 ray_dir = camera_dir + ((uv.x * camera_right) + (uv.y * camera_up)) * ray_spread;
     ray_dir = normalize(ray_dir);
     
-    vec3 bg = ray_dir * .5 + .5;
-    
-    vec4 col = vec4(0., 1., 0., 0.);
+    animate();
+
+    vec3 col = vec3(0., 1., 0.);
     
     float ray_len = 0.;
     float map_dist = 123.;
@@ -554,18 +624,26 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     }
     
     normal = map_normal(point, map_dist, NORMAL_EPSILON);
-    col = vec4(color_at(point, ray_dir, normal, mat), 1.);
+    col = color_at(point, ray_dir, normal, mat);
+    // Floor darkening
     col *= smoothstep(0., 2., point.z) * .8 + .2;
+    // Ceiling darkening
+    //col *= pow(vec3(smoothstep(3., 2., point.z)), vec3(1.5, 1., 1.));
+    col *= smoothstep(3., 2., point.z);
+    // Back darkening
+    col *= smoothstep(-1.5, .5, point.y) * .8 + .2;
+    // Behind couch darkening
+    col *= smoothstep(.6, 0., dot(point.xy - vec2(1., 2.), normalize(vec2(1., 3.))));
     col *= 1. - length_pow(vec3(uv, 0.), 4.) * .7;
     
     col *= 1.8;
     
-    col *= smoothstep(0., 2., abs(iGlobalTime - LOOP_DURATION));
-    col *= .7 * smoothstep(LOOP_DURATION * 2., LOOP_DURATION * 2. - 2., iGlobalTime) + .3;
+    col *= smoothstep(0., 2., abs(tiime - LOOP_DURATION));
+    col *= .7 * smoothstep(LOOP_DURATION * 2., LOOP_DURATION * 2. - 2., tiime) + .3;
 
-    col.rgb = max(col.rgb, vec3(.015));
+    col.rgb = clamp(col.rgb, vec3(.015), vec3(.8));
     col.rgb = pow(col.rgb, vec3(.95, 1.07, 1.05));
-    col = vec4(sqrt(col.rgb), 1.);
+    col = sqrt(col);
     
-	fragColor = col;
+	fragColor = vec4(col, 1.);
 }
