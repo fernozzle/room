@@ -167,64 +167,49 @@ float anim_fac(float time, float start, float len) {
 
 // Material data: 3 channels & index
 //   Index [0, 1) = smoothness; RGB = albedo
-float map(in vec3 p, out vec4 material) {
+float map(in vec3 p, out vec4 mat) {
     float dist = walls_map(p - vec3(-.55, -.6, 0.), vec2(5.5, 5.8));
-    material = vec4(.77, .15, .16, 0.8);
+    mat = vec4(.77, .15, .16, 0.8);
     
     // Floor
     float new_dist;
     new_dist = p.z;
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(.5, .27, .14, 0.4);
-    }
+    mat = mix(mat, vec4(.5, .27, .14, 0.4), step(new_dist, dist));
+    dist = min(dist, new_dist);
     
     
     // Pillars
     new_dist = min(pillar_map(p - vec3(.7, 2.3, 0.), .12), pillar_map(p - vec3(-2.14, 2.3, 0.), .12));
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(.95, .94, .91, 0.5);
-    }
+    mat = mix(mat, vec4(.95, .94, .91, 0.5), step(new_dist, dist));
+    dist = min(dist, new_dist);
 
     // Shelf
     new_dist = shelf_map(p - vec3(-3.3, 2.3, 0.));
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(.9, .52, .3, 0.8);
-    }
+    mat = mix(mat, vec4(.9, .52, .3, 0.8), step(new_dist, dist));
+    dist = min(dist, new_dist);
     
     // Door
     new_dist = box_map(p - vec3(-3.3, 1.3, 1.09), vec3(0.1, .98, 2.16), .01);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(.8, .8, .8, 0.5);
-    }
+    mat = mix(mat, vec4(.8, .8, .8, 0.5), step(new_dist, dist));
+    dist = min(dist, new_dist);
     
     // Painting
     new_dist = box_map(p - vec3(-3.3, -.4, 1.5), vec3(.1, .8, .97), .01);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(.9, .9, .9, 0.8);
-    }
+    mat = mix(mat, vec4(.9, .9, .9, 0.8), step(new_dist, dist));
+    dist = min(dist, new_dist);
     
     // Couch
     new_dist = couch_map(p - vec3(.3, 1.0, 0.));
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(.76, .52, .33, 0.9);
-    }
+    mat = mix(mat, vec4(.76, .52, .33, 0.9), step(new_dist, dist));
+    dist = min(dist, new_dist);
 
     // Curtains
     new_dist = curtain_map(p - vec3(-.8, 2.3, 1.5));
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = vec4(1., 1., 1., 2.);
-    }
+    mat = mix(mat, vec4(1., 1., 1., 2.), step(new_dist, dist));
+    dist = min(dist, new_dist);
 
     // Johnny
     #ifdef ENABLE_JOHNNY
-    vec4 new_mat = vec4(0.);
     vec3 pos = vec3(-.41, 1.11, 1.24);
     vec3 dir_y = vec3(1., .5, .3);
     
@@ -331,15 +316,16 @@ float map(in vec3 p, out vec4 material) {
     fac = anim_fac(time_remapped, 30., 1.);
     dir_y = mix(dir_y, vec3( 1.00, -.3, -.1), fac);
     
+    vec4 new_mat = vec4(0.);
     new_dist = person_map(get_pos(p - pos, normalize(dir_y)), 0., new_mat);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = new_mat;
-    }
+    mat = mix(mat, new_mat, step(new_dist, dist));
+    dist = min(dist, new_dist);
+    
     #endif
     
     // Lisa
     #ifdef ENABLE_LISA
+    
     pos = vec3(.08, 1.3, .8);
     dir_y = vec3(-.8, -1., .3);
     
@@ -353,10 +339,9 @@ float map(in vec3 p, out vec4 material) {
     
     
     new_dist = person_map(get_pos(p - pos, normalize(dir_y)), 1., new_mat);
-    if (new_dist < dist) {
-        dist = new_dist;
-        material = new_mat;
-    }
+    mat = mix(mat, new_mat, step(new_dist, dist));
+    dist = min(dist, new_dist);
+    
     #endif
     
     return dist;
