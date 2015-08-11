@@ -1,10 +1,15 @@
-#define PI 3.141592
-#define TWO_PI 6.2831853
-//#define VERTICAL_FOV 80.
+#define ENABLE_JOHNNY
+//#define ENABLE_LISA
+
+#define PI     3.141592
+#define TWO_PI 6.283185
+
 #define MAX_ALPHA .9
-#define NORMAL_EPSILON .01
+#define NORMAL_EPSILON .001
+
 // Compensate for distorted distance fields
 #define STEP_SCALE 0.8
+
 #define LOOP_DURATION 25.
 
 float time_remapped;
@@ -112,7 +117,6 @@ float sdCapsule( vec3 p, vec3 a, vec3 b, float r )
 }
     
 float person_map(vec3 p, float lisaness, out vec4 mat) {
-    //p.xy = -p.xy;
     p.x = abs(p.x); // Symmetrical
     
     // Head
@@ -132,10 +136,8 @@ float person_map(vec3 p, float lisaness, out vec4 mat) {
     mat = vec4(1. * mult, .77 * mult, .65 * mult, 1.7);
     
     float eye_dist = length((p - vec3(.025, .10, -.02)) * vec3(1., 1., .8)) - .005;
-    if (eye_dist < dist) {
-        dist = eye_dist;
-        mat = vec4(0., 0., 0., 0.3);
-    }
+    mat = mix(mat, vec4(0., 0., 0., 0.5), step(eye_dist, dist));
+    dist = min(dist, eye_dist);
     
     float body_top = -.14;
     float body_radius = (p.z - body_top) * -.15 + .045;
@@ -144,16 +146,13 @@ float person_map(vec3 p, float lisaness, out vec4 mat) {
     float body_dist = distance(p, body_near) - .005;
     body_dist = smin(body_dist, sdCapsule(p, vec3(.0, .0, -.15), vec3(.2, .0, -.3), .04), .02);
     
-    if (body_dist < dist) {
-        dist = body_dist;
-        mat = mix(vec4(.30, .25, .21, .9), vec4(3., 2., 2., .9), lisaness);
-    }
+    vec4 body_mat = mix(vec4(.30, .25, .21, .9), vec4(3., 1.5, 1.3, .9), lisaness);
+    mat = mix(mat, body_mat, step(body_dist, dist));
+    dist = min(dist, body_dist);
     
     float stick_dist = sdCapsule(p, vec3(0., 0., -.4), vec3(0., 0., -10.), .02);
-    if (stick_dist < dist) {
-        dist = stick_dist;
-        mat = vec4(.9, .52, .3, .6);
-    }
+    mat = mix(mat, vec4(.9, .52, .3, .6), step(stick_dist, dist));
+    dist = min(dist, stick_dist);
 
     return dist;
 }
@@ -224,6 +223,7 @@ float map(in vec3 p, out vec4 material) {
     }
 
     // Johnny
+    #ifdef ENABLE_JOHNNY
     vec4 new_mat = vec4(0.);
     vec3 pos = vec3(-.41, 1.11, 1.24);
     vec3 dir_y = vec3(1., .5, .3);
@@ -336,18 +336,40 @@ float map(in vec3 p, out vec4 material) {
         dist = new_dist;
         material = new_mat;
     }
+    #endif
+    
+    // Lisa
+    #ifdef ENABLE_LISA
+    pos = vec3(.08, 1.3, .8);
+    dir_y = vec3(-.8, -1., .3);
+    
+    fac = anim_fac(time_remapped, 3.2, .8);
+    pos   = mix(pos,   vec3(.085, 1.27, .8), fac);
+    dir_y = mix(dir_y, vec3(-.7, -1., .2), fac);
+    
+    fac = anim_fac(time_remapped, 5., .7);
+    pos   = mix(pos,   vec3(.082, 1.27, .8), fac);
+    dir_y = mix(dir_y, vec3(-.7, -1., .15), fac);
+    
+    
+    new_dist = person_map(get_pos(p - pos, normalize(dir_y)), 1., new_mat);
+    if (new_dist < dist) {
+        dist = new_dist;
+        material = new_mat;
+    }
+    #endif
     
     return dist;
 }
 
-vec3 map_normal(vec3 p, float epsilon) {
+vec3 map_normal(vec3 p, float map_dist, float epsilon) {
     vec4 mat;
     vec2 offset = vec2(epsilon, 0.);
     vec3 diff = vec3(
-        map(p + offset.xyy, mat) - map(p - offset.xyy, mat),
-        map(p + offset.yxy, mat) - map(p - offset.yxy, mat),
-        map(p + offset.yyx, mat) - map(p - offset.yyx, mat)
-    );
+        map(p + offset.xyy, mat),
+        map(p + offset.yxy, mat),
+        map(p + offset.yyx, mat)
+    ) - map_dist;
     return normalize(diff);
 }
 
@@ -546,7 +568,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         ray_len += map_dist * STEP_SCALE;
     }
     
-    normal = map_normal(point, NORMAL_EPSILON);
+    normal = map_normal(point, map_dist, NORMAL_EPSILON);
     col = vec4(color_at(point, ray_dir, normal, mat), 1.);
     col *= smoothstep(0., 2., point.z) * .8 + .2;
     col *= 1. - length_pow(vec3(uv, 0.), 4.) * .7;
