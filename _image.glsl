@@ -126,7 +126,7 @@ float person_map(vec3 p, float lisaness, out vec4 mat) {
     dist = smin(dist, neck_dist, .02);
     
     float mult = 3.;
-    mat = vec4(1. * mult, .77 * mult, .65 * mult, 2.);
+    mat = vec4(1. * mult, .77 * mult, .65 * mult, 1.7);
     
     float eye_dist = length((p - vec3(.025, .10, -.02)) * vec3(1., 1., .8)) - .005;
     if (eye_dist < dist) {
@@ -217,7 +217,7 @@ float map(in vec3 p, out vec4 material) {
     new_dist = curtain_map(p - vec3(-.8, 2.3, 1.5));
     if (new_dist < dist) {
         dist = new_dist;
-        material = vec4(1., 1., 1., 1.);
+        material = vec4(1., 1., 1., 2.);
     }
 
     // Johnny
@@ -445,42 +445,35 @@ vec3 light_standard(vec3 p, float coc, vec3 albedo, float roughness, vec3 normal
     return surface_color;
 }
 
+// Now branchless!
 vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
-    // Used only for skin
-    vec4 temp_mat;
+    
+    // Subsurface scattering
     vec3 light_dir = normalize(window_light_pos - p);
     float soft = .04;
+    vec4 temp_mat;
     float light = smoothstep(-soft, soft, map(p + light_dir * soft, temp_mat));
+    vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(1. / light));
     
-    vec3 surface_color = vec3(0.);
-    if (mat.a < 1.) {
-  	 	// Standard shading
+    // Standard shading
+    vec3 surface_color = light_standard(p, coc, mat.rgb, fract(mat.a), normal, ray_dir);
+    surface_color *= ao(p, normal, coc);
+    
+    // Curtain (i.e. outrageously fake) shading
+    vec3 wall_color = vec3(.3, .1, .1) * .3;
+    float shade_fac = pow(dot(normal, vec3(0., -1., 0.)), 2.);
+    shade_fac *= -dot(ray_dir, normal);
+    float power = 2.;
+    float windowness = pow(length_pow((p - vec3(-.8, 2.2, 2.)) * vec3(2., 1., 1.), 4.), 3.);
+    vec3 transmission_color = pow(vec3(.3, .25, .2), vec3(windowness)) * 2.;
+    vec3 curtain_color = mix(wall_color, transmission_color, shade_fac);
 
-        float amb_occ = ao(p, normal, coc);
-        vec3 light_sum = light_standard(p, coc, mat.rgb, mat.a, normal, ray_dir);
-        return light_sum * amb_occ;
-    } else if (mat.a < 2.) {
-        // Curtain shading
-        vec3 wall_color = vec3(.3, .1, .1) * .3;
-        float shade_fac = pow(dot(normal, vec3(0., -1., 0.)), 2.);
-        shade_fac *= -dot(ray_dir, normal);
-        float power = 2.;
-        float windowness = pow(length_pow((p - vec3(-.8, 2.2, 2.)) * vec3(2., 1., 1.), 4.), 3.);
-        vec3 transmission_color = pow(vec3(.3, .25, .2), vec3(windowness)) * 2.;
-        surface_color = mix(wall_color, transmission_color, shade_fac);
-        
-        float stripe = smoothstep(-.1, .1, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
-        vec3 stripe_color = vec3(.08, .05, .06) * shade_fac/* + vec3(1.) * pow(shade_fac, 10.)*/;
-        stripe_color = mix(stripe_color, wall_color, .5 * pow(1. - shade_fac, 5.));
-        surface_color = mix(surface_color, stripe_color, stripe);
-        return surface_color;
-    } else {
-        // Skin shading
-        vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(1. / light));
-        surface_color = light_standard(p, coc, mat.rgb, .7, normal, ray_dir);
+    float stripe = smoothstep(-.1, .1, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
+    vec3 stripe_color = vec3(.08, .05, .06) * shade_fac;
+    stripe_color = mix(stripe_color, wall_color, .5 * pow(1. - shade_fac, 5.));
+    curtain_color = mix(curtain_color, stripe_color, stripe);
 
-        return mix(surface_color, subsurface_color, .3);
-    }
+    return mix(mix(surface_color, subsurface_color, .3 * step(1., mat.a)), curtain_color, step(2., mat.a));
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -559,40 +552,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     col *= 1. - length_pow(vec3(uv, 0.), 4.) * .7;
     
     col *= 1.8;
-    /* Goodbye AA, DoF, and compile failures
-    for (int i = 0; i < 40; i++) {
-        if (ray_len > 100. || col.a > MAX_ALPHA) continue; 
-        coc = coc_size(ray_len);
-        point = camera_pos + ray_len * ray_dir;
-        map_dist = map(point, mat);
-        
-        
-        if(abs(map_dist) < coc) {
-            normal = map_normal(point, NORMAL_EPSILON);
-            float toward_camera = -dot(normal, ray_dir);
-            if (toward_camera > 0.) {
-                float alpha = toward_camera * coc_kernel(coc, map_dist);
-                
-                vec3 surface_color = color_at(point, ray_dir, normal, coc, mat);
-                
-                // "Alpha-under"ing surface_color/alpha beneath col
-                float added_coverage = alpha * (1. - col.a);
-                col = vec4(
-                    (col.rgb * col.a + surface_color * added_coverage) / (col.a + added_coverage),
-                    mix(col.a, 1., alpha)
-                );
-            }
-        }
-        
-        iters++;
-        ray_len += max(map_dist - .5 * coc, .3 * coc) * STEP_SCALE;
-    }
-    
-    if (col == vec4(0., 1., 0., 0.)) {
-        normal = map_normal(point, NORMAL_EPSILON);
-        col = vec4(color_at(point, ray_dir, normal, coc, mat), 1.);
-    }
-    */
+
     col.rgb = max(col.rgb, vec3(.015));
     col.rgb = pow(col.rgb, vec3(.95, 1.07, 1.05));
     col = vec4(sqrt(col.rgb), 1.);
