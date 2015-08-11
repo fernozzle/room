@@ -39,7 +39,7 @@ float pillar_map(vec3 p, float radius) {
     return length(p.xy) - radius;
 }
 float shelf_map(vec3 p) {
-    if (p.y < -p.x) p.xyz = p.yxz * vec3(-1., 1., 1.);
+    p.xy = mix(p.xy, vec2(-p.y, p.x), step(p.y, -p.x));
     
     float shelf_spacing = .33;
     float shelf_height = floor(p.z / shelf_spacing + .5) * shelf_spacing;
@@ -350,28 +350,28 @@ float coc_kernel(float width, float dist) {
     return smoothstep(width, -width, dist);
 }
 
-float soft_shadow(vec3 p, vec3 dir, float softness, float coc, float start_len) {
+float soft_shadow(vec3 p, vec3 dir, float softness, float start_len) {
     float brightness = 1.;
-    float len = coc + start_len;
+    float len = start_len;
     vec4 mat;
     for (int i = 0; i < 10; i++) {
         float map_dist = map(p + dir * len, mat);
-        float coc2 = coc + len * softness;
+        float coc2 = len * softness;
         brightness *= 1. - coc_kernel(coc2, map_dist);
-        len += (map_dist + .5 * coc) * STEP_SCALE;
+        len += map_dist * STEP_SCALE;
     }
     return clamp(brightness, 0., 1.);
 }
 
-float ao(vec3 p, vec3 normal, float coc) {
+float ao(vec3 p, vec3 normal) {
     float ao_size = .5;
     float brightness = 1.;
-    float len = coc + .05;
+    float len = .05;
     vec4 mat;
     for (int i = 0; i < 3; i++) {
         float map_dist = map(p + normal * len, mat);
         brightness *= clamp(map_dist / len + len * ao_size, 0., 1.);
-        len += map_dist + .5 * coc;
+        len += map_dist;
     }
     return pow(brightness, .3);
 }
@@ -412,24 +412,19 @@ vec3 shade_standard(vec3 albedo, float roughness, vec3 normal, vec3 light_dir, v
     return vec3(0.);
 }
 
-float coc_size(float dist) {
-    return 2. / iResolution.y * dist;
-    //return (sin(iGlobalTime * 3.) * 2. + 3.) / iResolution.y * dist;
-}
-
 float length_pow(vec3 d, float p) {
     return pow(pow(d.x, p) + pow(d.y, p) + pow(d.z, p), 1. / p);
 }
 
 vec3 window_light_pos = vec3(-1., 1.8, 1.2);
-vec3 light_standard(vec3 p, float coc, vec3 albedo, float roughness, vec3 normal, vec3 ray_dir) {
+vec3 light_standard(vec3 p, vec3 albedo, float roughness, vec3 normal, vec3 ray_dir) {
     vec3 surface_color = vec3(0.);
     vec3 light_pos;
 
     light_pos = window_light_pos;
     vec3 light_dir = normalize(light_pos - p);
     vec3 light_intensity;
-    light_intensity = shade_standard(albedo, roughness, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, coc, .1);
+    light_intensity = shade_standard(albedo, roughness, normal, light_dir, ray_dir) * soft_shadow(p, light_dir, .1, .1);
     surface_color += light_intensity * vec3(0.85, 0.8, 0.9) * .8;
 
     light_pos = vec3(-3., -.57, 1.6);
@@ -446,7 +441,7 @@ vec3 light_standard(vec3 p, float coc, vec3 albedo, float roughness, vec3 normal
 }
 
 // Now branchless!
-vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
+vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, vec4 mat) {
     
     // Subsurface scattering
     vec3 light_dir = normalize(window_light_pos - p);
@@ -456,8 +451,8 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, float coc, vec4 mat) {
     vec3 subsurface_color = pow(vec3(.7,.3,.1), vec3(1. / light));
     
     // Standard shading
-    vec3 surface_color = light_standard(p, coc, mat.rgb, fract(mat.a), normal, ray_dir);
-    surface_color *= ao(p, normal, coc);
+    vec3 surface_color = light_standard(p, mat.rgb, fract(mat.a), normal, ray_dir);
+    surface_color *= ao(p, normal);
     
     // Curtain (i.e. outrageously fake) shading
     vec3 wall_color = vec3(.3, .1, .1) * .3;
@@ -537,7 +532,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     
     vec3 point;
     vec3 normal;
-    float coc;
     vec4 mat;
     for (int i = 0; i < 100; i++) {
         if (ray_len > 100. || map_dist < .001) continue; 
@@ -547,7 +541,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     }
     
     normal = map_normal(point, NORMAL_EPSILON);
-    col = vec4(color_at(point, ray_dir, normal, .0, mat), 1.);
+    col = vec4(color_at(point, ray_dir, normal, mat), 1.);
     col *= smoothstep(0., 2., point.z) * .8 + .2;
     col *= 1. - length_pow(vec3(uv, 0.), 4.) * .7;
     
