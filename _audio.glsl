@@ -1,4 +1,4 @@
-#define LOOP_DURATION 25.
+#define LOOP_DURATION 30.
 #define PITCH_SMOOTHING
 
 #define TAU 6.283185
@@ -154,11 +154,11 @@ PP(0.00,0.00)PP(0.04,7.10)PP(0.08,15.67)PP(0.12,24.99)PP(0.28,66.86)PP(0.32,76.7
     
     float labial = hash22mono(time) * .4;
     s += labial * pulse(time,  2.86, .03);
-    s += labial * pulse(time,  5.56, .08) * 0.5;
+    s += labial * pulse(time,  5.58, .08) * 0.5;
     s += labial * pulse(time, 15.84, .03);
     s += labial * pulse(time, 20.29, .14) * 0.2;
     
     //s = sin(TAU * actualprog);*/
     //s = sin(TAU * phase);
-    return vec2(s * .1/* * exp(-0.1*time) */);
+    return vec2(s * .3/* * exp(-0.1*time) */);
 }

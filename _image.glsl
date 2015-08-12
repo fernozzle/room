@@ -1,5 +1,8 @@
 #define ENABLE_JOHNNY
 #define ENABLE_LISA
+// | Pretty big impact on performance! Disable if too slow or speech too intelligible
+// V
+#define ENABLE_CLOSED_CAPTIONS
 
 #define PI     3.141592
 #define TWO_PI 6.283185
@@ -10,23 +13,94 @@
 // Compensate for distorted distance fields
 #define STEP_SCALE 0.8
 
-#define LOOP_DURATION 25.
+#define LOOP_DURATION 30.
 
+// Globals!
 float time_remapped;
-
 vec3 johnny_pos = vec3(0.), johnny_dir = vec3(1.);
 vec3   lisa_pos = vec3(0.),   lisa_dir = vec3(1.);
 
-// iq's texture noise
-float noise( in vec3 x )
-{
-    vec3 p = floor(x);
-    vec3 f = fract(x);
-	f = f*f*(3.0-2.0*f);
-	
-	vec2 uv = (p.xy+vec2(37.0,17.0)*p.z) + f.xy;
-	vec2 rg = texture2D( iChannel0, (uv+0.5)/256.0, -100.0 ).yx;
-	return mix( rg.x, rg.y, f.z );
+vec2 cursor_pos = vec2(4.);
+float line_appear_time = 0.;
+float new_lat = 1000.;
+#define MAX_GLYPHS 35
+vec4 glyphs[MAX_GLYPHS];
+float glyph_count = 0.;
+
+//#define GL(
+
+vec4 _sp = vec4(0);
+vec4 _A = vec4(0xc3c3c3,0xffffc3,0xe7c3c3,0x183c7e);
+vec4 _B = vec4(0xe37f3f,0x7fe3c3,0xc3e37f,0x3f7fe3);
+vec4 _C = vec4(0xe77e3c,0x303c3,0xc30303,0x3c7ee7);
+vec4 _D = vec4(0xe37f3f,0xc3c3c3,0xc3c3c3,0x3f7fe3);
+vec4 _E = vec4(0x3ffff,0x3f0303,0x3033f,0xffff03);
+vec4 _F = vec4(0x30303,0x3f0303,0x3033f,0xffff03);
+vec4 _G = vec4(0xe77e3c,0xf3c3c3,0xc303f3,0x3c7ee7);
+vec4 _H = vec4(0xc3c3c3,0xffc3c3,0xc3c3ff,0xc3c3c3);
+vec4 _I = vec4(0x187e7e,0x181818,0x181818,0x7e7e18);
+vec4 _J = vec4(0x637f3e,0x606063,0x606060,0xf0f060);
+vec4 _K = vec4(0x73e3c3,0xf1f3b,0x3b1f0f,0xc3e373);
+vec4 _L = vec4(0x3ffff,0x30303,0x30303,0x30303);
+vec4 _M = vec4(0xc3c3c3,0xdbc3c3,0xffffdb,0xc3c3e7);
+vec4 _N = vec4(0xc3c3c3,0xf3e3c3,0xcfdffb,0xc3c3c7);
+vec4 _O = vec4(0xe77e3c,0xc3c3c3,0xc3c3c3,0x3c7ee7);
+vec4 _P = vec4(0x30303,0x3f0303,0xc3e37f,0x3f7fe3);
+vec4 _Q = vec4(0x77fedc,0xc3dbfb,0xc3c3c3,0x3c7ee7);
+vec4 _R = vec4(0x73e3c3,0x3f1f3b,0xc3e37f,0x3f7fe3);
+vec4 _S = vec4(0xe77e3c,0x7ce0c3,0xc3073e,0x3c7ee7);
+vec4 _T = vec4(0x181818,0x181818,0x181818,0xffff18);
+vec4 _U = vec4(0xe77e3c,0xc3c3c3,0xc3c3c3,0xc3c3c3);
+vec4 _V = vec4(0x7e3c18,0xc3c3e7,0xc3c3c3,0xc3c3c3);
+vec4 _W = vec4(0xff7e24,0xdbdbdb,0xc3c3db,0xc3c3c3);
+vec4 _X = vec4(0xc3c3c3,0x3c7ee7,0xe77e3c,0xc3c3c3);
+vec4 _Y = vec4(0x181818,0x7e3c18,0xc3c3e7,0xc3c3c3);
+vec4 _Z = vec4(0x3ffff,0x1c0e07,0xe07038,0xffffc0);
+vec4 _gt = vec4(0x1c0e06,0xe07038,0x3870e0,0x60e1c);
+vec4 _ap = vec4(0x0,0x0,0x60000,0x60606);
+vec4 _co = vec4(0xc0e06,0xc,0x0,0x0);
+vec2 glyph_spacing = vec2(10., 14.);
+
+float get_bit(float data, float bit) {
+    return step(1., mod(data / pow(2., bit), 2.));
+}
+
+vec4 glyph(vec4 data, float glyph_number, float scale, vec2 fragCoord) {
+    fragCoord /= scale;
+    fragCoord.x -= glyph_number * glyph_spacing.x;
+    fragCoord -= vec2(8.);
+    
+    float transition_fac = smoothstep(new_lat - .1, new_lat, time_remapped);
+    float alpha = step(abs(fragCoord.x - 4.), 6.) * step(fragCoord.y, 14.) * step(transition_fac * glyph_spacing.y - 2., fragCoord.y);;
+    fragCoord.y -= transition_fac * glyph_spacing.y;
+    fragCoord = floor(fragCoord);
+    
+    float bit = fragCoord.x + fragCoord.y * 8.;
+    
+    float bright;
+    bright =  get_bit(data.x, bit      );
+    bright += get_bit(data.y, bit - 24.);
+    bright += get_bit(data.z, bit - 48.);
+    bright += get_bit(data.w, bit - 72.);
+    bright *= 1. - step(8., fragCoord.x);
+    bright *= step(0., fragCoord.x);
+    
+    return vec4(vec3(bright), alpha);
+}
+
+void draw_glyphs(vec2 fragCoord, float scale, float a, inout vec3 col) {
+    vec3 total = vec3(0.);
+    float total_alpha = 0.;
+    for(int i = 0; i < MAX_GLYPHS; i++) {
+        float i_float = float(i);
+        vec4 glyphcol = glyph(glyphs[i], i_float, scale, fragCoord);
+        float alpha = step(line_appear_time + .05 * i_float, time_remapped);
+        alpha *= glyphcol.a;
+        alpha *= step(i_float, glyph_count - 1.);
+        total = mix(total, glyphcol.rgb, alpha);
+        total_alpha = max(total_alpha, alpha);
+    }
+    col = mix(col, total, total_alpha * a);
 }
 
 vec2 normalize_pixel_coords(vec2 pixel_coords) {
@@ -153,7 +227,7 @@ float person_map(vec3 p, float lisaness, out vec4 mat) {
     mat = mix(mat, body_mat, step(body_dist, dist));
     dist = min(dist, body_dist);
     
-    float stick_dist = distance(p, vec3(0., 0., min(p.z, -.4))) - .02;
+    float stick_dist = distance(p, vec3(0., 0., clamp(p.z, mix(-.9, -1.4, lisaness), -.4))) - .02;
     mat = mix(mat, vec4(.9, .52, .3, .6), step(stick_dist, dist));
     dist = min(dist, stick_dist);
 
@@ -356,7 +430,7 @@ vec3 color_at(vec3 p, vec3 ray_dir, vec3 normal, vec4 mat) {
     vec3 transmission_color = pow(vec3(.3, .25, .2), vec3(windowness)) * 2.;
     vec3 curtain_color = mix(wall_color, transmission_color, shade_fac);
 
-    float stripe = smoothstep(-.2, .2, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
+    float stripe = smoothstep(-.3, .3, sin((p.z + cos(p.x * 11.) * .02) * 200.)) * .8;
     vec3 stripe_color = vec3(.08, .05, .06) * shade_fac;
     stripe_color = mix(stripe_color, wall_color, .5 * pow(1. - shade_fac, 5.));
     curtain_color = mix(curtain_color, stripe_color, stripe);
@@ -460,24 +534,24 @@ void animate() {
     
     fac = anim_fac(time_remapped, 19.8, 1.2);
     johnny_pos = mix(johnny_pos, vec3(-0.50, 0.60, 1.28), fac);
-    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.3,  -.10), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, 1.3,  -.3), fac);
     
     fac = anim_fac(time_remapped, 20.4, 1.);
     johnny_pos = mix(johnny_pos, vec3(-0.50, 1., 1.0), fac);
-    johnny_dir = mix(johnny_dir, vec3( 1.00, .2,  -.05), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .2,  -.5), fac);
     
     // Do you?
     
     fac = anim_fac(time_remapped, 21.5, .8);
     johnny_pos = mix(johnny_pos, vec3(-0.45, 1., 1.0), fac);
-    johnny_dir = mix(johnny_dir, vec3( 1.00, .2,  -.1), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .45,  -.6), fac);
     
     fac = anim_fac(time_remapped, 22.3, 1.);
     johnny_pos = mix(johnny_pos, vec3(-0.45, .995, 1.0), fac);
-    johnny_dir = mix(johnny_dir, vec3( 1.00, .15,  -.08), fac);
+    johnny_dir = mix(johnny_dir, vec3( 1.00, .4,  -.7), fac);
     
-    fac = anim_fac(time_remapped, 30., 1.);
-    johnny_dir = mix(johnny_dir, vec3( 1.00, -.3, -.1), fac);
+    fac = anim_fac(time_remapped, 31., 5.);
+    johnny_dir = mix(johnny_dir, vec3( -.7, -1., .8), fac);
     
     // LISA
     
@@ -548,16 +622,17 @@ void animate() {
     
     fac = anim_fac(time_remapped, 19.3, 1.);
     lisa_pos = mix(lisa_pos, vec3(.34, 1.39, .75), pow(vec3(fac), vec3(1., 1., 2.)));
-    lisa_dir = mix(lisa_dir, vec3(-.6, -1., 1.7), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., 2.2), fac);
     
     fac = anim_fac(time_remapped, 20.3, .7);
     lisa_pos = mix(lisa_pos, vec3(.34, 1.39, .80), fac);
-    lisa_dir = mix(lisa_dir, vec3(-.6, -1., 1.5), fac);
+    lisa_dir = mix(lisa_dir, vec3(-.6, -1., 2.0), fac);
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     float tiime = iGlobalTime;
-    tiime = mix(tiime - 7., tiime, step(401., iResolution.x));
+    float small = step(iResolution.x, 400.);
+    tiime = mix(tiime, tiime - 7., small);
     time_remapped = mix(tiime, tiime - LOOP_DURATION, step(LOOP_DURATION, tiime));
     vec2 mouse_normalized = normalize_pixel_coords(iMouse.xy);
     
@@ -572,7 +647,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     camera_switch = mix(camera_switch, 0., step(18.9, time_remapped));
     camera_switch = mix(camera_switch, 1., step(19.4, time_remapped));
     camera_switch = mix(camera_switch, 0., step(21.6, time_remapped));
-    camera_switch = mix(camera_switch, mouse_normalized.x * .5 + .5, step(-.95, mouse_normalized.x));
+    camera_switch = mix(camera_switch, 2. + .2 * (time_remapped - 24.), step(24.0, time_remapped));
+    camera_switch = mix(camera_switch, mouse_normalized.x * 1.5 + .5, step(-.95, mouse_normalized.x));
     
     float camera1_transition  = anim_fac(time_remapped, 10.0, 0.1);
     float camera1_transition2 = anim_fac(time_remapped, 20.5, 0.1);
@@ -629,12 +705,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // Floor darkening
     col *= smoothstep(0., 2., point.z) * .8 + .2;
     // Ceiling darkening
-    //col *= pow(vec3(smoothstep(3., 2., point.z)), vec3(1.5, 1., 1.));
     col *= smoothstep(3., 2., point.z);
     // Back darkening
     col *= smoothstep(-1.5, .5, point.y) * .8 + .2;
     // Behind couch darkening
     col *= smoothstep(.6, 0., dot(point.xy - vec2(1., 2.), normalize(vec2(1., 3.))));
+    // Shelf corner darkening
+    col *= smoothstep(1.3, 0., dot(point.xy - vec2(-2.5, 1.8), normalize(vec2(-1., 1.))));
+    // Vignette
     col *= 1. - length_pow(vec3(uv, 0.), 4.) * .7;
     
     col *= 1.8;
@@ -643,8 +721,405 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     col *= .7 * smoothstep(LOOP_DURATION * 2., LOOP_DURATION * 2. - 2., tiime) + .3;
 
     col.rgb = clamp(col.rgb, vec3(.015), vec3(.8));
-    col.rgb = pow(col.rgb, vec3(.95, 1.07, 1.05));
-    col = sqrt(col);
+    col.rgb = pow(col.rgb, vec3(.95, 1.07, 1.05) / 2.);
+    
+    #ifdef ENABLE_CLOSED_CAPTIONS
+    
+    glyphs[0] = _gt;
+    glyphs[1] = _gt;
+    glyphs[2] = _sp;
+    glyphs[3] = _W;
+    glyphs[4] = _H;
+    glyphs[5] = _Y;
+    glyphs[6] = _sp;
+    glyphs[7] = _L;
+    glyphs[8] = _I;
+    glyphs[9] = _S;
+    glyphs[10] = _A;
+    glyphs[11] = _co;
+    glyphs[12] = _sp;
+    glyphs[13] = _W;
+    glyphs[14] = _H;
+    glyphs[15] = _Y;
+    glyphs[16] = _sp;
+    glyphs[17] = _L;
+    glyphs[18] = _I;
+    glyphs[19] = _S;
+    glyphs[20] = _A;
+    glyph_count = 21.;
+    
+    line_appear_time = 0.1;
+    
+    new_lat = 1.7;
+    if (time_remapped > new_lat) {
+        glyphs[0] = _P;
+        glyphs[1] = _L;
+        glyphs[2] = _E;
+        glyphs[3] = _A;
+        glyphs[4] = _S;
+        glyphs[5] = _E;
+        glyphs[6] = _sp;
+        glyphs[7] = _T;
+        glyphs[8] = _A;
+        glyphs[9] = _L;
+        glyphs[10] = _K;
+        glyphs[11] = _sp;
+        glyphs[12] = _T;
+        glyphs[13] = _O;
+        glyphs[14] = _sp;
+        glyphs[15] = _M;
+        glyphs[16] = _E;
+        glyphs[17] = _co;
+        glyphs[18] = _sp;
+        glyphs[19] = _P;
+        glyphs[20] = _L;
+        glyphs[21] = _E;
+        glyphs[22] = _A;
+        glyphs[23] = _S;
+        glyphs[24] = _E;
+        glyph_count = 25.;
+        line_appear_time = new_lat;
+        new_lat = 4.4;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _Y;
+        glyphs[1] = _O;
+        glyphs[2] = _U;
+        glyphs[3] = _ap;
+        glyphs[4] = _R;
+        glyphs[5] = _E;
+        glyphs[6] = _sp;
+        glyphs[7] = _P;
+        glyphs[8] = _A;
+        glyphs[9] = _R;
+        glyphs[10] = _T;
+        glyphs[11] = _sp;
+        glyphs[12] = _O;
+        glyphs[13] = _F;
+        glyphs[14] = _sp;
+        glyphs[15] = _M;
+        glyphs[16] = _Y;
+        glyphs[17] = _sp;
+        glyphs[18] = _L;
+        glyphs[19] = _I;
+        glyphs[20] = _F;
+        glyphs[21] = _E;
+        glyph_count = 22.;
+        line_appear_time = new_lat;
+        new_lat = 5.7;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _Y;
+        glyphs[1] = _O;
+        glyphs[2] = _U;
+        glyphs[3] = _sp;
+        glyphs[4] = _A;
+        glyphs[5] = _R;
+        glyphs[6] = _E;
+        glyphs[7] = _sp;
+        glyphs[8] = _E;
+        glyphs[9] = _V;
+        glyphs[10] = _E;
+        glyphs[11] = _R;
+        glyphs[12] = _Y;
+        glyphs[13] = _T;
+        glyphs[14] = _H;
+        glyphs[15] = _I;
+        glyphs[16] = _N;
+        glyphs[17] = _G;
+        glyph_count = 18.;
+        line_appear_time = new_lat;
+        new_lat = 6.9;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _I;
+        glyphs[1] = _sp;
+        glyphs[2] = _C;
+        glyphs[3] = _O;
+        glyphs[4] = _U;
+        glyphs[5] = _L;
+        glyphs[6] = _D;
+        glyphs[7] = _sp;
+        glyphs[8] = _N;
+        glyphs[9] = _O;
+        glyphs[10] = _T;
+        glyphs[11] = _sp;
+        glyphs[12] = _G;
+        glyphs[13] = _O;
+        glyphs[14] = _sp;
+        glyphs[15] = _O;
+        glyphs[16] = _N;
+        glyphs[17] = _sp;
+        glyphs[18] = _W;
+        glyphs[19] = _I;
+        glyphs[20] = _T;
+        glyphs[21] = _H;
+        glyphs[22] = _O;
+        glyphs[23] = _U;
+        glyphs[24] = _T;
+        glyphs[25] = _sp;
+        glyphs[26] = _Y;
+        glyphs[27] = _O;
+        glyphs[28] = _U;
+        glyphs[29] = _co;
+        glyphs[30] = _sp;
+        glyphs[31] = _L;
+        glyphs[32] = _I;
+        glyphs[33] = _S;
+        glyphs[34] = _A;
+        glyph_count = 35.;
+        line_appear_time = new_lat;
+        new_lat = 10.;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _gt;
+        glyphs[1] = _gt;
+        glyphs[2] = _sp;
+        glyphs[3] = _Y;
+        glyphs[4] = _O;
+        glyphs[5] = _U;
+        glyphs[6] = _ap;
+        glyphs[7] = _R;
+        glyphs[8] = _E;
+        glyphs[9] = _sp;
+        glyphs[10] = _S;
+        glyphs[11] = _C;
+        glyphs[12] = _A;
+        glyphs[13] = _R;
+        glyphs[14] = _I;
+        glyphs[15] = _N;
+        glyphs[16] = _G;
+        glyphs[17] = _sp;
+        glyphs[18] = _M;
+        glyphs[19] = _E;
+        glyph_count = 20.;
+        line_appear_time = new_lat;
+        new_lat = 12.2;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _gt;
+        glyphs[1] = _gt;
+        glyphs[2] = _sp;
+        glyphs[3] = _Y;
+        glyphs[4] = _O;
+        glyphs[5] = _U;
+        glyphs[6] = _ap;
+        glyphs[7] = _R;
+        glyphs[8] = _E;
+        glyphs[9] = _sp;
+        glyphs[10] = _L;
+        glyphs[11] = _Y;
+        glyphs[12] = _I;
+        glyphs[13] = _N;
+        glyphs[14] = _G;
+        glyph_count = 15.;
+        line_appear_time = new_lat;
+        new_lat = 13.;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _I;
+        glyphs[1] = _sp;
+        glyphs[2] = _N;
+        glyphs[3] = _E;
+        glyphs[4] = _V;
+        glyphs[5] = _E;
+        glyphs[6] = _R;
+        glyphs[7] = _sp;
+        glyphs[8] = _H;
+        glyphs[9] = _I;
+        glyphs[10] = _T;
+        glyphs[11] = _sp;
+        glyphs[12] = _Y;
+        glyphs[13] = _O;
+        glyphs[14] = _U;
+        glyph_count = 15.;
+        line_appear_time = new_lat;
+        new_lat = 14.5;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _Y;
+        glyphs[1] = _O;
+        glyphs[2] = _U;
+        glyphs[3] = _ap;
+        glyphs[4] = _R;
+        glyphs[5] = _E;
+        glyphs[6] = _sp;
+        glyphs[7] = _T;
+        glyphs[8] = _E;
+        glyphs[9] = _A;
+        glyphs[10] = _R;
+        glyphs[11] = _I;
+        glyphs[12] = _N;
+        glyphs[13] = _G;
+        glyphs[14] = _sp;
+        glyphs[15] = _M;
+        glyphs[16] = _E;
+        glyphs[17] = _sp;
+        glyphs[18] = _A;
+        glyphs[19] = _P;
+        glyphs[20] = _A;
+        glyphs[21] = _R;
+        glyphs[22] = _T;
+        glyphs[23] = _co;
+        glyphs[24] = _sp;
+        glyphs[25] = _L;
+        glyphs[26] = _I;
+        glyphs[27] = _S;
+        glyphs[28] = _A;
+        glyph_count = 29.;
+        line_appear_time = new_lat;
+        new_lat = 17.2;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _gt;
+        glyphs[1] = _gt;
+        glyphs[2] = _sp;
+        glyphs[3] = _W;
+        glyphs[4] = _H;
+        glyphs[5] = _Y;
+        glyphs[6] = _sp;
+        glyphs[7] = _A;
+        glyphs[8] = _R;
+        glyphs[9] = _E;
+        glyphs[10] = _sp;
+        glyphs[11] = _Y;
+        glyphs[12] = _O;
+        glyphs[13] = _U;
+        glyphs[14] = _sp;
+        glyphs[15] = _S;
+        glyphs[16] = _O;
+        glyphs[17] = _sp;
+        glyphs[18] = _H;
+        glyphs[19] = _Y;
+        glyphs[20] = _S;
+        glyphs[21] = _T;
+        glyphs[22] = _E;
+        glyphs[23] = _R;
+        glyphs[24] = _I;
+        glyphs[25] = _C;
+        glyphs[26] = _A;
+        glyphs[27] = _L;
+        glyph_count = 28.;
+        line_appear_time = new_lat;
+        new_lat = 18.9;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _gt;
+        glyphs[1] = _gt;
+        glyphs[2] = _sp;
+        glyphs[3] = _D;
+        glyphs[4] = _O;
+        glyphs[5] = _sp;
+        glyphs[6] = _Y;
+        glyphs[7] = _O;
+        glyphs[8] = _U;
+        glyphs[9] = _sp;
+        glyphs[10] = _U;
+        glyphs[11] = _N;
+        glyphs[12] = _D;
+        glyphs[13] = _E;
+        glyphs[14] = _R;
+        glyphs[15] = _S;
+        glyphs[16] = _T;
+        glyphs[17] = _A;
+        glyphs[18] = _N;
+        glyphs[19] = _D;
+        glyphs[20] = _sp;
+        glyphs[21] = _L;
+        glyphs[22] = _I;
+        glyphs[23] = _F;
+        glyphs[24] = _E;
+        glyph_count = 25.;
+        line_appear_time = new_lat;
+        new_lat = 21.7;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _D;
+        glyphs[1] = _O;
+        glyphs[2] = _sp;
+        glyphs[3] = _Y;
+        glyphs[4] = _O;
+        glyphs[5] = _U;
+        glyph_count = 6.;
+        line_appear_time = new_lat;
+        new_lat = 24.;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _gt;
+        glyphs[1] = _gt;
+        glyphs[2] = _sp;
+        glyphs[3] = _T;
+        glyphs[4] = _H;
+        glyphs[5] = _E;
+        glyphs[6] = _sp;
+        glyphs[7] = _T;
+        glyphs[8] = _O;
+        glyphs[9] = _M;
+        glyphs[10] = _M;
+        glyphs[11] = _Y;
+        glyphs[12] = _sp;
+        glyphs[13] = _W;
+        glyphs[14] = _I;
+        glyphs[15] = _S;
+        glyphs[16] = _E;
+        glyphs[17] = _A;
+        glyphs[18] = _U;
+        glyphs[19] = _sp;
+        glyphs[20] = _P;
+        glyphs[21] = _U;
+        glyphs[22] = _P;
+        glyphs[23] = _P;
+        glyphs[24] = _E;
+        glyphs[25] = _T;
+        glyphs[26] = _sp;
+        glyphs[27] = _S;
+        glyphs[28] = _H;
+        glyphs[29] = _O;
+        glyphs[30] = _W;
+        glyph_count = 31.;
+        line_appear_time = new_lat;
+        new_lat = 28.;
+    }
+    
+    if (time_remapped > new_lat) {
+        glyphs[0] = _T;
+        glyphs[1] = _H;
+        glyphs[2] = _A;
+        glyphs[3] = _N;
+        glyphs[4] = _K;
+        glyphs[5] = _S;
+        glyphs[6] = _sp;
+        glyphs[7] = _F;
+        glyphs[8] = _O;
+        glyphs[9] = _R;
+        glyphs[10] = _sp;
+        glyphs[11] = _W;
+        glyphs[12] = _A;
+        glyphs[13] = _T;
+        glyphs[14] = _C;
+        glyphs[15] = _H;
+        glyphs[16] = _I;
+        glyphs[17] = _N;
+        glyphs[18] = _G;
+        glyph_count = 19.;
+        line_appear_time = new_lat;
+        new_lat = 1e100;
+    }
+
+    draw_glyphs(fragCoord, mix(2., 1., small), mix(.5, .0, small), col);
+    
+    #endif
     
 	fragColor = vec4(col, 1.);
 }
